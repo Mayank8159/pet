@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Petpooja Website Clone",
-  description: "Petpooja-inspired marketing website clone built with Next.js",
+  title: "Tabio",
+  description: "Tabio marketing website built with Next.js",
 };
 
 export default function RootLayout({

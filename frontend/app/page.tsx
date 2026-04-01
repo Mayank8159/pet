@@ -53,7 +53,7 @@ export default function Home() {
   const testimonials = [
     {
       quote:
-        "Petpooja helped us standardize operations across all outlets. Billing is faster and inventory leakage dropped significantly.",
+        "Tabio helped us standardize operations across all outlets. Billing is faster and inventory leakage dropped significantly.",
       person: "Rohan Mehta",
       role: "Director, Spice Trail Restaurants",
     },
@@ -69,9 +69,9 @@ export default function Home() {
     <div className="pp-site">
       <header className="pp-header">
         <div className="pp-container pp-header-inner">
-          <a href="#" className="pp-logo" aria-label="Petpooja home">
+          <a href="#" className="pp-logo" aria-label="Tabio home">
             <span className="pp-logo-mark">pp</span>
-            <span className="pp-logo-text">Petpooja</span>
+            <span className="pp-logo-text">Tabio</span>
           </a>
           <nav className="pp-nav" aria-label="Primary navigation">
             {navItems.map((item) => (
@@ -101,7 +101,7 @@ export default function Home() {
                 <span> growth-first platform.</span>
               </h1>
               <p>
-                Petpooja-style restaurant software built for billing, inventory,
+                Tabio restaurant software built for billing, inventory,
                 online orders and analytics. Scale from one outlet to many with
                 less manual work.
               </p>
@@ -168,7 +168,7 @@ export default function Home() {
             <div className="pp-section-head">
               <h2>Everything you need to operate efficiently</h2>
               <p>
-                Inspired by Petpooja website sections, this page combines the
+                Inspired by leading restaurant SaaS websites, this page combines the
                 core modules that restaurant teams use daily.
               </p>
             </div>
@@ -230,10 +230,10 @@ export default function Home() {
       <footer className="pp-footer">
         <div className="pp-container pp-footer-inner">
           <div>
-            <h3>Petpooja Clone</h3>
+            <h3>Tabio</h3>
             <p>Made with Next.js in your existing frontend workspace.</p>
           </div>
-          <p>2026 Petpooja-inspired website clone. All rights to brand belong to original owners.</p>
+          <p>2026 Tabio. Built for modern restaurant operations.</p>
         </div>
       </footer>
     </div>
