@@ -12,7 +12,7 @@ export function Navbar({ navItems = ['Products', 'About Us', 'Careers'] }: Navba
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <nav className="sticky top-0 z-50 bg-gradient-to-r from-[#001a31]/90 via-[#032448]/90 to-[#02213f]/90 backdrop-blur-xl border-b border-white/20 shadow-2xl">
+    <nav className="sticky top-0 z-50 bg-gradient-to-r from-[#001a31] via-[#012a4a] to-[#001f39] border-b border-[#0b3b67] shadow-[0_10px_30px_rgba(0,12,28,0.35)]">
       <div className="mx-auto w-[92%] max-w-[1510px]">
         {/* Main Navbar */}
         <div className="flex items-center justify-between h-16 md:h-20">
@@ -37,7 +37,7 @@ export function Navbar({ navItems = ['Products', 'About Us', 'Careers'] }: Navba
                 className="text-sm font-semibold text-white relative group transition-colors duration-200 hover:text-[#ff6b9d]"
               >
                 {item}
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#ff6b9d] transition-all duration-300 group-hover:w-full" />
+                <span className="absolute -bottom-1 left-0 h-0.5 w-0 bg-[#ff6b9d] transition-all duration-300 group-hover:w-full" />
               </a>
             ))}
           </div>
@@ -51,7 +51,7 @@ export function Navbar({ navItems = ['Products', 'About Us', 'Careers'] }: Navba
 
           {/* Mobile Menu Toggle */}
           <button
-            className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg hover:bg-white/20 transition-all duration-200 backdrop-blur-sm"
+            className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg border border-white/15 bg-[#05325a] hover:bg-[#0a3e6e] transition-all duration-200"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle menu"
           >
@@ -65,13 +65,13 @@ export function Navbar({ navItems = ['Products', 'About Us', 'Careers'] }: Navba
 
         {/* Mobile Navigation - Dropdown */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-white/20 bg-gradient-to-b from-[#032448]/95 to-[#001a31]/95 backdrop-blur-xl py-4 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="md:hidden border-t border-[#0b3b67] bg-gradient-to-b from-[#02284a] to-[#001a31] py-4 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="space-y-2 px-2">
               {navItems.map((item) => (
                 <a
                   key={item}
                   href="#"
-                  className="block px-4 py-2.5 text-sm font-semibold text-white rounded-lg hover:bg-white/10 hover:text-[#ff6b9d] transition-all duration-200"
+                  className="block px-4 py-2.5 text-sm font-semibold text-white rounded-lg hover:bg-[#0b3b67] hover:text-[#ff6b9d] transition-all duration-200"
                 >
                   {item}
                 </a>
