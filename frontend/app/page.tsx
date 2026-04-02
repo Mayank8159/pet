@@ -9,7 +9,7 @@ import { WhySection } from "@/components/WhySection";
 
 export default function Home() {
   const navItems = ["Products", "About Us", "Careers"];
-  const featureTabs = ["Poss", "Payroll", "Invoice", "Purchase", "Tasks"];
+  const featureTabs = ["POS", "Payroll", "Invoice", "Purchase", "Tasks"];
   const trustedBrands = [
     "Jumboking",
     "Vasanta Bhavan",

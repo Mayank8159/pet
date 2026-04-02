@@ -41,7 +41,7 @@ export function EcosystemSection() {
             <div className="rounded-lg bg-[#cf1e38]/20 p-3 w-fit mb-4 backdrop-blur-sm">
               <TrendingUp className="w-6 h-6 text-[#cf1e38]" />
             </div>
-            <h3 className="text-2xl font-semibold text-[#031a33] md:text-[1.9rem]">POSS</h3>
+            <h3 className="text-2xl font-semibold text-[#031a33] md:text-[1.9rem]">POS</h3>
             <p className="mt-4 max-w-3xl text-base text-[#344a60] md:text-lg">
               All-rounder solution designed to drive restaurant growth, supporting
               all types of food service outlets.

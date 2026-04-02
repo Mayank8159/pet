@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Lightbulb, Target, Zap, Headphones } from "lucide-react";
+import type { LucideProps } from "lucide-react";
 
 type WhyCard = {
   title: string;
@@ -12,7 +13,7 @@ type WhySectionProps = {
   whyCards: WhyCard[];
 };
 
-const iconMap: { [key: string]: React.ComponentType<any> } = {
+const iconMap: Record<string, React.ComponentType<LucideProps>> = {
   "Continuous Innovation": Lightbulb,
   "Pricing": Target,
   "Simplicity": Zap,

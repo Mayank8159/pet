@@ -13,6 +13,7 @@ import {
   Home as HomeIcon,
   IndianRupee,
   LayoutGrid,
+  MoonStar,
   PieChart,
   Printer,
   QrCode,
@@ -23,6 +24,7 @@ import {
   Truck,
   User,
   Wallet,
+  SunMedium,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -180,6 +182,14 @@ function money(value: number) {
 
 export default function Home() {
   const pathname = usePathname();
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    if (typeof window === "undefined") {
+      return "light";
+    }
+
+    const savedTheme = window.localStorage.getItem("pos-theme");
+    return savedTheme === "dark" ? "dark" : "light";
+  });
   const [orders, setOrders] = useState<BillOrder[]>(initialOrders);
   const [selectedOrderId, setSelectedOrderId] = useState<string>(initialOrders[0].id);
   const [showTableModal, setShowTableModal] = useState(false);
@@ -258,7 +268,11 @@ export default function Home() {
     );
   }
 
-  const isDark = false;
+  useEffect(() => {
+    window.localStorage.setItem("pos-theme", theme);
+  }, [theme]);
+
+  const isDark = theme === "dark";
 
   const palette = {
     shell: isDark ? "bg-[#05070d] text-slate-100" : "bg-[#f5eee8] text-slate-900",
@@ -361,9 +375,9 @@ export default function Home() {
       <div className={`fixed inset-0 -z-10 ${palette.backdrop}`} />
 
       <div className="flex min-h-screen">
-        <aside className={`hidden w-24 flex-col p-3 backdrop-blur-xl lg:flex ${palette.sidebar}`}>
+        <aside className={`hidden w-28 flex-col p-3 backdrop-blur-xl lg:flex ${palette.sidebar}`}>
           <div className={`mb-4 rounded-2xl border p-3 text-center shadow-[0_12px_30px_rgba(0,0,0,0.2)] ${isDark ? "border-white/8 bg-white/[0.06]" : "border-black/5 bg-white"}`}>
-            <p className={`text-xs font-semibold tracking-[0.2em] ${palette.sidebarBrand}`}>POSS</p>
+            <p className={`text-xs font-semibold tracking-[0.2em] ${palette.sidebarBrand}`}>POS</p>
           </div>
 
           <nav className="space-y-2 text-xs">
@@ -374,13 +388,13 @@ export default function Home() {
               { label: "Live View", icon: PieChart, href: "/bill/live-view" },
               { label: "Settings", icon: Settings, href: "/bill/settings" },
             ].map((entry) => {
-              const isActive = pathname === entry.href;
+              const isActive = pathname === entry.href || pathname.startsWith(`${entry.href}/`);
 
               return (
                 <Link
                   key={entry.label}
                   href={entry.href}
-                  className={`flex w-full flex-col items-center gap-1 rounded-xl border p-2.5 transition ${
+                  className={`flex w-full flex-col items-center gap-1 rounded-xl border p-2.5 text-center leading-tight transition ${
                     isActive ? palette.sidebarActive : palette.sidebarItem
                   }`}
                 >
@@ -399,8 +413,18 @@ export default function Home() {
                 <p className={`text-xs uppercase tracking-[0.22em] ${isDark ? "text-[#ff9f8f]/80" : "text-[#cc4b3e]/80"}`}>Restaurant POS</p>
                 <h1 className={`text-2xl font-semibold md:text-3xl ${palette.textStrong}`}>Live Billing Desk</h1>
               </div>
-              <div className={`rounded-2xl px-4 py-2 text-sm ${palette.headerPill}`}>
-                {currentOrder ? `Order ${currentOrder.id}` : "No active orders"}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+                  className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-medium transition ${palette.headerPill}`}
+                >
+                  {isDark ? <SunMedium className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
+                  {isDark ? "Light" : "Dark"}
+                </button>
+                <div className={`rounded-2xl px-4 py-2 text-sm ${palette.headerPill}`}>
+                  {currentOrder ? `Order ${currentOrder.id}` : "No active orders"}
+                </div>
               </div>
             </div>
 

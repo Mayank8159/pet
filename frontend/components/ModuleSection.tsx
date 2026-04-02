@@ -2,13 +2,14 @@
 
 import React, { useState } from 'react';
 import { Zap, Wallet, FileText, ShoppingCart, CheckSquare } from 'lucide-react';
+import type { LucideProps } from 'lucide-react';
 
 type ModuleSectionProps = {
   featureTabs: string[];
 };
 
-const iconMap: { [key: string]: React.ComponentType<any> } = {
-  Poss: Zap,
+const iconMap: Record<string, React.ComponentType<LucideProps>> = {
+  POS: Zap,
   Payroll: Wallet,
   Invoice: FileText,
   Purchase: ShoppingCart,
@@ -29,7 +30,7 @@ export function ModuleSection({ featureTabs }: ModuleSectionProps) {
                 type="button"
                 onClick={() => setActiveTab(index)}
                 className={`rounded-xl px-6 py-2.5 text-base transition md:text-lg flex items-center gap-2 font-semibold backdrop-blur-sm border ${
-                  index === 0
+                  index === activeTab
                     ? "bg-gradient-to-r from-[#cf1e38]/20 to-[#cf1e38]/10 text-[#cf1e38] border-[#cf1e38]/30 hover:border-[#cf1e38]/50"
                     : "text-[#101827] border-transparent hover:bg-white/40 hover:border-gray-300/30 hover:shadow-lg"
                 }`}
@@ -52,7 +53,7 @@ export function ModuleSection({ featureTabs }: ModuleSectionProps) {
           href="#"
           className="mt-4 inline-block text-base text-[#cf1e38] underline underline-offset-[6px] md:text-xl"
         >
-          Explore Poss
+          Explore POS
         </a>
       </div>
     </section>

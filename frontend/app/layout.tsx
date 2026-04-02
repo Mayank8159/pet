@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Restaurant POS Dashboard",
-  description: "A graphical restaurant point of sale dashboard built with Next.js App Router and Tailwind CSS.",
+  title: "Tabio",
+  description: "All-in-one software powering SME growth with modern billing and operations tools.",
 };
 
 export default function RootLayout({
@@ -24,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full bg-[#07111b] text-slate-100">{children}</body>
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }
