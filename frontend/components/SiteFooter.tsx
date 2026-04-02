@@ -1,4 +1,37 @@
 import Image from "next/image";
+import type { SVGProps } from "react";
+
+function LinkedInLogo(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+      <path d="M6.94 8.5a1.44 1.44 0 1 1 0-2.88 1.44 1.44 0 0 1 0 2.88ZM5.7 9.75h2.48V18H5.7V9.75Zm4.03 0h2.37v1.13h.04c.33-.63 1.14-1.3 2.36-1.3 2.53 0 3 1.67 3 3.84V18h-2.47v-3.96c0-.95-.01-2.16-1.32-2.16-1.32 0-1.52 1.03-1.52 2.09V18H9.73V9.75Z" />
+    </svg>
+  );
+}
+
+function InstagramLogo(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+      <path d="M7.75 3h8.5A4.75 4.75 0 0 1 21 7.75v8.5A4.75 4.75 0 0 1 16.25 21h-8.5A4.75 4.75 0 0 1 3 16.25v-8.5A4.75 4.75 0 0 1 7.75 3Zm0 1.75A3 3 0 0 0 4.75 7.75v8.5a3 3 0 0 0 3 3h8.5a3 3 0 0 0 3-3v-8.5a3 3 0 0 0-3-3h-8.5Zm8.88 1.5a1.12 1.12 0 1 1 0 2.24 1.12 1.12 0 0 1 0-2.24ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 1.75a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5Z" />
+    </svg>
+  );
+}
+
+function YouTubeLogo(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+      <path d="M20.56 7.2a2.73 2.73 0 0 0-1.92-1.92C16.95 4.75 12 4.75 12 4.75s-4.95 0-6.64.53A2.73 2.73 0 0 0 3.44 7.2 28.7 28.7 0 0 0 3 12a28.7 28.7 0 0 0 .44 4.8 2.73 2.73 0 0 0 1.92 1.92c1.69.53 6.64.53 6.64.53s4.95 0 6.64-.53a2.73 2.73 0 0 0 1.92-1.92A28.7 28.7 0 0 0 21 12a28.7 28.7 0 0 0-.44-4.8ZM10.4 15.2V8.8L15.6 12l-5.2 3.2Z" />
+    </svg>
+  );
+}
+
+function FacebookLogo(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+      <path d="M13.5 21v-7.42h2.5l.38-2.9h-2.88V8.83c0-.84.23-1.42 1.44-1.42h1.53V4.82A20.4 20.4 0 0 0 14.23 4c-2.2 0-3.73 1.34-3.73 3.8v2.88H8v2.9h2.5V21h3Z" />
+    </svg>
+  );
+}
 
 type SiteFooterProps = {
   awards: string[];
@@ -9,6 +42,12 @@ export function SiteFooter({ awards }: SiteFooterProps) {
 
   const legalLinks = ["Privacy", "Compliance", "Terms", "Cancellation & Refund"];
   const quickLinks = ["Products", "Pricing", "Resources", "Contact"];
+  const socialLinks = [
+    { name: "LinkedIn", icon: LinkedInLogo },
+    { name: "Instagram", icon: InstagramLogo },
+    { name: "YouTube", icon: YouTubeLogo },
+    { name: "Facebook", icon: FacebookLogo },
+  ];
 
   return (
     <footer className="bg-gradient-to-b from-[#041b35] to-[#021426] py-10 text-[#e8eef6] md:py-12">
@@ -27,14 +66,14 @@ export function SiteFooter({ awards }: SiteFooterProps) {
             Connect with us: (+91) 91043 69797 · inquiry@tabio.com
           </p>
           <div className="flex items-center gap-2 md:justify-end">
-            {['in', 'ig', 'yt', 'fb'].map((social) => (
+            {socialLinks.map(({ name, icon: Icon }) => (
               <a
-                key={social}
+                key={name}
                 href="#"
-                aria-label={`Visit our ${social} page`}
+                aria-label={`Visit our ${name} page`}
                 className="grid size-10 place-items-center rounded-full border border-white/45 bg-white/5 text-xs font-semibold uppercase tracking-wide transition hover:border-white hover:bg-white/12"
               >
-                {social}
+                <Icon className="size-4" />
               </a>
             ))}
           </div>
