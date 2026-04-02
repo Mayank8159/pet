@@ -1,19 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, BarChart3, IndianRupee, MoonStar, ReceiptText, SunMedium } from "lucide-react";
 
 export default function ReportsPage() {
-  const [theme, setTheme] = useState<"dark" | "light">(() => {
-    if (typeof window === "undefined") {
-      return "light";
-    }
-
-    return window.localStorage.getItem("pos-theme") === "dark" ? "dark" : "light";
-  });
+  const [theme, setTheme] = useState<"dark" | "light">("light");
+  const isThemeReadyRef = useRef(false);
 
   useEffect(() => {
+    const savedTheme = window.localStorage.getItem("pos-theme");
+    window.setTimeout(() => {
+      isThemeReadyRef.current = true;
+      if (savedTheme === "dark") {
+        setTheme("dark");
+      }
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    if (!isThemeReadyRef.current) {
+      return;
+    }
     window.localStorage.setItem("pos-theme", theme);
   }, [theme]);
 

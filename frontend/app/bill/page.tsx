@@ -1,6 +1,7 @@
 "use client";
 
 import { Dialog, Listbox } from "@headlessui/react";
+import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3,
@@ -19,6 +20,7 @@ import {
   QrCode,
   Settings,
   ShoppingBag,
+  Search,
   Sparkles,
   TableProperties,
   Truck,
@@ -29,7 +31,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type OrderType = "Delivery" | "Takeaway" | "Dine-In";
 type SectionType = "AC" | "Non-AC" | "Rooftop";
@@ -74,6 +76,43 @@ type MenuItem = {
   name: string;
   price: number;
   tag: string;
+};
+
+type BackendMenuItem = {
+  id?: string | number;
+  name?: string;
+  price?: number;
+  tag?: string;
+  category?: string;
+};
+
+type BackendOrderItem = {
+  id?: string | number;
+  name?: string;
+  qty?: number;
+  quantity?: number;
+  price?: number;
+};
+
+type BackendOrder = {
+  id?: string | number;
+  orderId?: string | number;
+  customer?: string;
+  customerName?: string;
+  type?: string;
+  orderType?: string;
+  amount?: number;
+  total?: number;
+  itemCount?: number;
+  elapsed?: string;
+  mobile?: string;
+  phone?: string;
+  section?: string;
+  tableId?: string;
+  payment?: string;
+  paymentType?: string;
+  items?: BackendOrderItem[];
+  settled?: boolean;
 };
 
 const sections: SectionType[] = ["AC", "Non-AC", "Rooftop"];
@@ -172,6 +211,87 @@ const orderTypeMeta: Record<OrderType, { icon: React.ComponentType<{ className?:
   "Dine-In": { icon: HomeIcon },
 };
 
+const POS_API_BASE_URL = process.env.NEXT_PUBLIC_POS_API_BASE_URL ?? "http://localhost:8000";
+
+function normalizeOrderType(value: string | undefined): OrderType {
+  if (value === "Delivery" || value === "Takeaway" || value === "Dine-In") {
+    return value;
+  }
+  return "Dine-In";
+}
+
+function normalizePayment(value: string | undefined): PaymentType {
+  if (value === "Cash" || value === "Card" || value === "UPI") {
+    return value;
+  }
+  return "UPI";
+}
+
+function normalizeSection(value: string | undefined): SectionType {
+  if (value === "AC" || value === "Non-AC" || value === "Rooftop") {
+    return value;
+  }
+  return "AC";
+}
+
+function summarizeOrderItems(items: OrderItem[]) {
+  const subtotal = items.reduce((acc, item) => acc + item.qty * item.price, 0);
+  const tax = Math.round(subtotal * 0.05);
+  return {
+    amount: subtotal + tax,
+    itemCount: items.reduce((acc, item) => acc + item.qty, 0),
+  };
+}
+
+function mapMenuFromBackend(item: BackendMenuItem, index: number): MenuItem {
+  const id = String(item.id ?? `api-menu-${index + 1}`);
+  const name = item.name?.trim() || `Item ${index + 1}`;
+  const price = typeof item.price === "number" ? item.price : 0;
+  const tag = item.tag?.trim() || item.category?.trim() || "Food";
+
+  return { id, name, price, tag };
+}
+
+function mapOrderFromBackend(order: BackendOrder, index: number): BillOrder {
+  const items: OrderItem[] = (order.items ?? []).map((item, itemIndex) => ({
+    id: String(item.id ?? `api-order-${index + 1}-item-${itemIndex + 1}`),
+    name: item.name?.trim() || `Item ${itemIndex + 1}`,
+    qty: Math.max(1, item.qty ?? item.quantity ?? 1),
+    price: typeof item.price === "number" ? item.price : 0,
+  }));
+
+  const summary = summarizeOrderItems(items);
+  const amount = typeof order.amount === "number" ? order.amount : typeof order.total === "number" ? order.total : summary.amount;
+
+  return {
+    id: String(order.id ?? order.orderId ?? `#B-${index + 1}`),
+    customer: order.customer?.trim() || order.customerName?.trim() || "Guest",
+    type: normalizeOrderType(order.type ?? order.orderType),
+    amount,
+    itemCount: typeof order.itemCount === "number" ? order.itemCount : summary.itemCount,
+    elapsed: order.elapsed?.trim() || "Now",
+    mobile: order.mobile?.trim() || order.phone?.trim() || "",
+    section: normalizeSection(order.section),
+    tableId: order.tableId ?? null,
+    payment: normalizePayment(order.payment ?? order.paymentType),
+    items,
+    settled: Boolean(order.settled),
+  };
+}
+
+async function fetchWithFallback<T>(paths: string[]): Promise<T | null> {
+  for (const path of paths) {
+    try {
+      const response = await axios.get<T>(`${POS_API_BASE_URL}${path}`, { timeout: 6000 });
+      return response.data;
+    } catch {
+      // Try next fallback endpoint.
+    }
+  }
+
+  return null;
+}
+
 function money(value: number) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -182,20 +302,27 @@ function money(value: number) {
 
 export default function Home() {
   const pathname = usePathname();
-  const [theme, setTheme] = useState<"dark" | "light">(() => {
-    if (typeof window === "undefined") {
-      return "light";
-    }
-
-    const savedTheme = window.localStorage.getItem("pos-theme");
-    return savedTheme === "dark" ? "dark" : "light";
-  });
+  const [theme, setTheme] = useState<"dark" | "light">("light");
+  const isThemeReadyRef = useRef(false);
   const [orders, setOrders] = useState<BillOrder[]>(initialOrders);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(quickMenu);
+  const [menuSearch, setMenuSearch] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState<string>(initialOrders[0].id);
   const [showTableModal, setShowTableModal] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
 
   const openOrders = useMemo(() => orders.filter((order) => !order.settled), [orders]);
+  const filteredMenuItems = useMemo(() => {
+    const query = menuSearch.trim().toLowerCase();
+    if (!query) {
+      return menuItems;
+    }
+
+    return menuItems.filter((item) => {
+      const searchable = `${item.name} ${item.tag}`.toLowerCase();
+      return searchable.includes(query);
+    });
+  }, [menuItems, menuSearch]);
 
   useEffect(() => {
     if (!banner) {
@@ -205,6 +332,48 @@ export default function Home() {
     const timeout = window.setTimeout(() => setBanner(null), 2200);
     return () => window.clearTimeout(timeout);
   }, [banner]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadBackendData() {
+      const [ordersResponse, menuResponse] = await Promise.all([
+        fetchWithFallback<BackendOrder[] | { data: BackendOrder[] }>(["/api/pos/orders/active", "/api/orders/active", "/orders/active"]),
+        fetchWithFallback<BackendMenuItem[] | { data: BackendMenuItem[] }>(["/api/pos/menu", "/api/menu", "/menu"]),
+      ]);
+
+      if (!isMounted) {
+        return;
+      }
+
+      const parsedOrders = Array.isArray(ordersResponse)
+        ? ordersResponse
+        : Array.isArray(ordersResponse?.data)
+          ? ordersResponse.data
+          : [];
+      const parsedMenu = Array.isArray(menuResponse)
+        ? menuResponse
+        : Array.isArray(menuResponse?.data)
+          ? menuResponse.data
+          : [];
+
+      if (parsedOrders.length > 0) {
+        const nextOrders = parsedOrders.map(mapOrderFromBackend);
+        setOrders(nextOrders);
+        setSelectedOrderId(nextOrders[0]?.id ?? "");
+      }
+
+      if (parsedMenu.length > 0) {
+        setMenuItems(parsedMenu.map(mapMenuFromBackend));
+      }
+    }
+
+    void loadBackendData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const currentOrder = useMemo(() => {
     const selected = orders.find((order) => order.id === selectedOrderId && !order.settled);
@@ -269,6 +438,19 @@ export default function Home() {
   }
 
   useEffect(() => {
+    const savedTheme = window.localStorage.getItem("pos-theme");
+    window.setTimeout(() => {
+      isThemeReadyRef.current = true;
+      if (savedTheme === "dark") {
+        setTheme("dark");
+      }
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    if (!isThemeReadyRef.current) {
+      return;
+    }
     window.localStorage.setItem("pos-theme", theme);
   }, [theme]);
 
@@ -407,7 +589,7 @@ export default function Home() {
         </aside>
 
         <div className="flex min-h-screen flex-1 flex-col">
-          <header className={`border-b px-4 py-3.5 backdrop-blur-md md:px-6 ${palette.header}`}>
+          <header className={`relative z-[120] border-b px-4 py-3.5 backdrop-blur-md md:px-6 ${palette.header}`}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className={`text-xs uppercase tracking-[0.22em] ${isDark ? "text-[#ff9f8f]/80" : "text-[#cc4b3e]/80"}`}>Restaurant POS</p>
@@ -470,12 +652,12 @@ export default function Home() {
                     className="flex flex-wrap items-center gap-2"
                   >
                     <Listbox value={section} onChange={(nextSection) => updateCurrentOrder({ section: nextSection })}>
-                      <div className="relative">
-                        <Listbox.Button className={`inline-flex min-w-32 items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm backdrop-blur-md ${palette.sectionButton}`}>
+                      <div className="relative z-[140]">
+                        <Listbox.Button className={`relative z-[141] inline-flex min-w-32 items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm backdrop-blur-md ${palette.sectionButton}`}>
                           <span>Section: {section}</span>
                           <ChevronDown className="h-4 w-4 text-slate-300" />
                         </Listbox.Button>
-                        <Listbox.Options className={`absolute z-20 mt-1 w-full rounded-xl p-1 text-sm backdrop-blur-xl ${palette.sectionMenu}`}>
+                        <Listbox.Options className={`absolute z-[160] mt-1 w-full rounded-xl p-1 text-sm backdrop-blur-xl shadow-[0_18px_40px_rgba(2,6,23,0.35)] ${palette.sectionMenu}`}>
                           {sections.map((option) => (
                             <Listbox.Option
                               key={option}
@@ -515,7 +697,7 @@ export default function Home() {
             </div>
           </header>
 
-          <div className="grid flex-1 gap-4 p-4 md:grid-cols-[0.82fr_1.18fr] md:p-5">
+          <div className="relative z-[10] grid flex-1 gap-4 p-4 md:grid-cols-[0.82fr_1.18fr] md:p-5">
             <section className={`rounded-[28px] p-3.5 backdrop-blur-lg ${palette.panel}`}>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className={palette.textStrong}>Active Orders</h2>
@@ -527,7 +709,7 @@ export default function Home() {
                   <motion.article
                     key={order.id}
                     whileHover={{ y: -2 }}
-                    className={`cursor-pointer rounded-2xl border p-3 shadow-[0_12px_30px_rgba(2,6,23,0.18)] ${order.id === selectedOrderId ? palette.sidebarActive : palette.panelSoft}`}
+                    className={`cursor-pointer rounded-2xl border p-3 shadow-[0_12px_30px_rgba(2,6,23,0.18)] ${order.id === currentOrder?.id ? palette.sidebarActive : palette.panelSoft}`}
                     onClick={() => setSelectedOrderId(order.id)}
                   >
                     <div className="flex items-center justify-between">
@@ -581,8 +763,20 @@ export default function Home() {
                 </label>
               </div>
 
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                {quickMenu.map((menu) => (
+              <div className={`mt-4 rounded-2xl border p-2.5 ${palette.panelSoft}`}>
+                <label className="relative block">
+                  <Search className={`pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${palette.textMuted}`} />
+                  <input
+                    value={menuSearch}
+                    onChange={(event) => setMenuSearch(event.target.value)}
+                    placeholder="Search food by name or tag"
+                    className={`w-full rounded-xl border py-2 pl-9 pr-3 text-sm outline-none ${palette.headerPill}`}
+                  />
+                </label>
+              </div>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                {filteredMenuItems.map((menu) => (
                   <button
                     key={menu.id}
                     type="button"
@@ -594,6 +788,11 @@ export default function Home() {
                     <p className={`mt-2 text-sm ${palette.highlight}`}>{money(menu.price)}</p>
                   </button>
                 ))}
+                {!filteredMenuItems.length ? (
+                  <div className={`col-span-full rounded-2xl border p-3 text-sm ${palette.panelSoft} ${palette.textMuted}`}>
+                    No matching food items found.
+                  </div>
+                ) : null}
               </div>
 
               <div className={`mt-4 flex-1 overflow-auto rounded-2xl p-3 ${palette.tableGrid}`}>
