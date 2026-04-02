@@ -63,7 +63,7 @@ export function SiteFooter({ awards }: SiteFooterProps) {
             />
           </a>
           <p className="text-left text-sm leading-relaxed text-[#d4dfec] md:text-center md:text-base">
-            Connect with us: (+91) 91043 69797 · inquiry@tabio.com
+            Connect with us: +91 70292 14041 · mukherjeesujit602@gmail.com
           </p>
           <div className="flex items-center gap-2 md:justify-end">
             {socialLinks.map(({ name, icon: Icon }) => (
