@@ -16,6 +16,7 @@ import {
   LayoutGrid,
   MoonStar,
   PieChart,
+  Plus,
   Printer,
   QrCode,
   Settings,
@@ -292,6 +293,19 @@ async function fetchWithFallback<T>(paths: string[]): Promise<T | null> {
   return null;
 }
 
+async function postWithFallback<TBody, TResponse>(paths: string[], body: TBody): Promise<TResponse | null> {
+  for (const path of paths) {
+    try {
+      const response = await axios.post<TResponse>(`${POS_API_BASE_URL}${path}`, body, { timeout: 6000 });
+      return response.data;
+    } catch {
+      // Try next fallback endpoint.
+    }
+  }
+
+  return null;
+}
+
 function money(value: number) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -307,6 +321,10 @@ export default function Home() {
   const [orders, setOrders] = useState<BillOrder[]>(initialOrders);
   const [menuItems, setMenuItems] = useState<MenuItem[]>(quickMenu);
   const [menuSearch, setMenuSearch] = useState("");
+  const [newOrderCustomer, setNewOrderCustomer] = useState("");
+  const [newOrderMobile, setNewOrderMobile] = useState("");
+  const [newOrderType, setNewOrderType] = useState<OrderType>("Dine-In");
+  const [isSavingNewOrder, setIsSavingNewOrder] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string>(initialOrders[0].id);
   const [showTableModal, setShowTableModal] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
@@ -552,6 +570,88 @@ export default function Home() {
     }
   }
 
+  function extractCreatedOrder(payload: unknown): BackendOrder | null {
+    if (!payload || typeof payload !== "object") {
+      return null;
+    }
+
+    const candidate = payload as { data?: unknown; order?: unknown };
+
+    if (candidate.data && typeof candidate.data === "object") {
+      const nestedData = candidate.data as { order?: unknown };
+      if (nestedData.order && typeof nestedData.order === "object") {
+        return nestedData.order as BackendOrder;
+      }
+      return candidate.data as BackendOrder;
+    }
+
+    if (candidate.order && typeof candidate.order === "object") {
+      return candidate.order as BackendOrder;
+    }
+
+    return payload as BackendOrder;
+  }
+
+  async function handleCreateOrder() {
+    if (isSavingNewOrder) {
+      return;
+    }
+
+    const customer = newOrderCustomer.trim() || "Guest";
+    const mobileValue = newOrderMobile.trim();
+    setIsSavingNewOrder(true);
+
+    const payload = {
+      customer,
+      mobile: mobileValue,
+      type: newOrderType,
+      section: "AC",
+      payment: "UPI",
+      items: [] as BackendOrderItem[],
+      settled: false,
+    };
+
+    const createdResponse = await postWithFallback<typeof payload, unknown>(
+      ["/api/pos/orders", "/api/orders", "/orders"],
+      payload,
+    );
+
+    let newOrder: BillOrder;
+    const createdOrder = extractCreatedOrder(createdResponse);
+
+    if (createdOrder) {
+      newOrder = mapOrderFromBackend(createdOrder, orders.length + 1);
+      if (!newOrder.elapsed) {
+        newOrder.elapsed = "Now";
+      }
+      setBanner(`Saved ${newOrder.id} to backend.`);
+    } else {
+      const fallbackId = `#N-${String(Date.now()).slice(-6)}`;
+      newOrder = {
+        id: fallbackId,
+        customer,
+        type: newOrderType,
+        amount: 0,
+        itemCount: 0,
+        elapsed: "Now",
+        mobile: mobileValue,
+        section: "AC",
+        tableId: null,
+        payment: "UPI",
+        items: [],
+        settled: false,
+      };
+      setBanner(`Backend unavailable. Created ${fallbackId} locally.`);
+    }
+
+    setOrders((prev) => [newOrder, ...prev]);
+    setSelectedOrderId(newOrder.id);
+    setNewOrderCustomer("");
+    setNewOrderMobile("");
+    setNewOrderType("Dine-In");
+    setIsSavingNewOrder(false);
+  }
+
   return (
     <div className={`min-h-screen ${palette.shell}`}>
       <div className={`fixed inset-0 -z-10 ${palette.backdrop}`} />
@@ -702,6 +802,48 @@ export default function Home() {
               <div className="mb-4 flex items-center justify-between">
                 <h2 className={palette.textStrong}>Active Orders</h2>
                 <span className={`text-xs uppercase tracking-[0.18em] ${isDark ? "text-[#ff9f8f]" : "text-[#cc4b3e]"}`}>Live</span>
+              </div>
+
+              <div className={`mb-3 rounded-2xl border p-3 ${palette.panelSoft}`}>
+                <p className={`text-xs font-semibold uppercase tracking-[0.16em] ${palette.textMuted}`}>
+                  Add New Order
+                </p>
+                <div className="mt-2 grid gap-2">
+                  <input
+                    value={newOrderCustomer}
+                    onChange={(event) => setNewOrderCustomer(event.target.value)}
+                    placeholder="Customer name"
+                    className={`rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
+                  />
+                  <input
+                    value={newOrderMobile}
+                    onChange={(event) => setNewOrderMobile(event.target.value)}
+                    placeholder="Mobile number"
+                    className={`rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
+                  />
+                  <select
+                    value={newOrderType}
+                    onChange={(event) => setNewOrderType(event.target.value as OrderType)}
+                    className={`rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
+                  >
+                    <option value="Dine-In">Dine-In</option>
+                    <option value="Takeaway">Takeaway</option>
+                    <option value="Delivery">Delivery</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleCreateOrder}
+                    disabled={isSavingNewOrder}
+                    className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                      isDark
+                        ? "bg-[#f06a5a]/20 text-[#ffd8d3] hover:bg-[#f06a5a]/28 disabled:opacity-60"
+                        : "bg-[#cc4b3e]/12 text-[#7f1d16] hover:bg-[#cc4b3e]/18 disabled:opacity-60"
+                    }`}
+                  >
+                    <Plus className="h-4 w-4" />
+                    {isSavingNewOrder ? "Saving..." : "Save New Order"}
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2.5">
@@ -890,20 +1032,20 @@ export default function Home() {
 
       <AnimatePresence>
         {showTableModal ? (
-          <Dialog open={showTableModal} onClose={setShowTableModal} className="relative z-50">
+          <Dialog open={showTableModal} onClose={setShowTableModal} className="relative z-[300]">
               <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className={`fixed inset-0 backdrop-blur-sm ${palette.modalOverlay}`}
+              className={`fixed inset-0 z-[300] backdrop-blur-sm ${palette.modalOverlay}`}
             />
-            <div className="fixed inset-0 flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-[310] flex items-center justify-center p-4">
               <Dialog.Panel
                 as={motion.div}
                 initial={{ opacity: 0, y: 20, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.96 }}
-                className={`w-full max-w-2xl rounded-3xl p-5 backdrop-blur-xl ${palette.modal}`}
+                className={`relative z-[320] w-full max-w-2xl rounded-3xl p-5 backdrop-blur-xl ${palette.modal}`}
               >
                 <div className="mb-4 flex items-center justify-between">
                   <Dialog.Title className={`inline-flex items-center gap-2 text-xl font-semibold ${palette.textStrong}`}>

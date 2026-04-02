@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { ArrowRight, Sparkles } from "lucide-react";
+import laptopPhoneImage from "@/public/laptopphone.png";
 
 export function HeroSection() {
   return (
@@ -24,7 +25,7 @@ export function HeroSection() {
 
       <div className="relative mx-auto mt-10 mb-[-4rem] h-[220px] w-[90%] max-w-[1200px] md:mt-16 md:mb-[-6rem] md:h-[360px]">
         <Image
-          src="/laptopphone.png"
+          src={laptopPhoneImage}
           alt="Tabio platform preview on laptop and phone"
           fill
           className="object-contain"
