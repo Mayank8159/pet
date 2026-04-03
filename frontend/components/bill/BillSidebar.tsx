@@ -10,6 +10,7 @@ type BillSidebarProps = {
 
 export function BillSidebar({ isDark }: BillSidebarProps) {
   const pathname = usePathname();
+  const normalizedPath = pathname.replace(/\/+$/, "") || "/";
 
   return (
     <aside className={`hidden w-28 flex-col p-3 backdrop-blur-xl lg:flex ${isDark ? "border-white/8 bg-[#08101a]/90" : "border-white/8 bg-[#fff7f2]/95"}`}>
@@ -25,7 +26,10 @@ export function BillSidebar({ isDark }: BillSidebarProps) {
           { label: "Live View", icon: PieChart, href: "/bill/live-view" },
           { label: "Settings", icon: Settings, href: "/bill/settings" },
         ].map((entry) => {
-          const isActive = pathname === entry.href || pathname.startsWith(`${entry.href}/`);
+          const isBillingRoot = entry.href === "/bill";
+          const isActive = isBillingRoot
+            ? normalizedPath === "/bill"
+            : normalizedPath === entry.href || normalizedPath.startsWith(`${entry.href}/`);
 
           return (
             <Link
