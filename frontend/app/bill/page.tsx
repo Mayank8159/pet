@@ -1,83 +1,30 @@
 "use client";
 
-import { Dialog, Listbox } from "@headlessui/react";
+import { Listbox } from "@headlessui/react";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3,
-  Bike,
-  Calculator,
   ChevronDown,
   ClipboardList,
-  CreditCard,
   FileText,
   Home as HomeIcon,
   IndianRupee,
-  LayoutGrid,
   MoonStar,
   PieChart,
-  Plus,
-  Printer,
-  QrCode,
   Settings,
   ShoppingBag,
-  Search,
-  Sparkles,
   TableProperties,
   Truck,
-  User,
-  Wallet,
   SunMedium,
-  X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-
-type OrderType = "Delivery" | "Takeaway" | "Dine-In";
-type SectionType = "AC" | "Non-AC" | "Rooftop";
-type PaymentType = "Cash" | "Card" | "UPI";
-type TableStatus = "Available" | "Occupied";
-
-type TableNode = {
-  id: string;
-  label: string;
-  status: TableStatus;
-  top: string;
-  left: string;
-};
-
-type OrderItem = {
-  id: string;
-  name: string;
-  qty: number;
-  price: number;
-};
-
-type ActiveOrder = {
-  id: string;
-  customer: string;
-  type: OrderType;
-  amount: number;
-  itemCount: number;
-  elapsed: string;
-};
-
-type BillOrder = ActiveOrder & {
-  mobile: string;
-  section: SectionType;
-  tableId: string | null;
-  payment: PaymentType;
-  items: OrderItem[];
-  settled: boolean;
-};
-
-type MenuItem = {
-  id: string;
-  name: string;
-  price: number;
-  tag: string;
-};
+import { ActiveOrdersPanel } from "@/components/bill/ActiveOrdersPanel";
+import { BillEditorPanel } from "@/components/bill/BillEditorPanel";
+import { TableManagementModal } from "@/components/bill/TableManagementModal";
+import type { BillOrder, MenuItem, OrderItem, OrderType, Palette, PaymentType, SectionType, TableNode, TableStatus } from "@/components/bill/types";
 
 type BackendMenuItem = {
   id?: string | number;
@@ -117,7 +64,6 @@ type BackendOrder = {
 };
 
 const sections: SectionType[] = ["AC", "Non-AC", "Rooftop"];
-
 const initialOrders: BillOrder[] = [
   {
     id: "#21635",
@@ -195,15 +141,15 @@ const quickMenu: MenuItem[] = [
   { id: "m6", name: "Choco Lava", price: 210, tag: "Dessert" },
 ];
 
-const tableNodes: TableNode[] = [
-  { id: "T1", label: "T1", status: "Occupied", top: "10%", left: "10%" },
-  { id: "T2", label: "T2", status: "Available", top: "12%", left: "36%" },
-  { id: "T3", label: "T3", status: "Available", top: "11%", left: "68%" },
-  { id: "T4", label: "T4", status: "Occupied", top: "42%", left: "16%" },
-  { id: "T5", label: "T5", status: "Available", top: "42%", left: "44%" },
-  { id: "T6", label: "T6", status: "Occupied", top: "42%", left: "72%" },
-  { id: "T7", label: "T7", status: "Available", top: "74%", left: "24%" },
-  { id: "T8", label: "T8", status: "Available", top: "74%", left: "56%" },
+const initialTables: TableNode[] = [
+  { id: "T1", label: "T1", status: "Occupied" },
+  { id: "T2", label: "T2", status: "Available" },
+  { id: "T3", label: "T3", status: "Available" },
+  { id: "T4", label: "T4", status: "Occupied" },
+  { id: "T5", label: "T5", status: "Available" },
+  { id: "T6", label: "T6", status: "Occupied" },
+  { id: "T7", label: "T7", status: "Available" },
+  { id: "T8", label: "T8", status: "Available" },
 ];
 
 const orderTypeMeta: Record<OrderType, { icon: React.ComponentType<{ className?: string }> }> = {
@@ -320,11 +266,15 @@ export default function Home() {
   const isThemeReadyRef = useRef(false);
   const [orders, setOrders] = useState<BillOrder[]>(initialOrders);
   const [menuItems, setMenuItems] = useState<MenuItem[]>(quickMenu);
+  const [tables, setTables] = useState<TableNode[]>(initialTables);
   const [menuSearch, setMenuSearch] = useState("");
   const [newOrderCustomer, setNewOrderCustomer] = useState("");
   const [newOrderMobile, setNewOrderMobile] = useState("");
   const [newOrderType, setNewOrderType] = useState<OrderType>("Dine-In");
   const [isSavingNewOrder, setIsSavingNewOrder] = useState(false);
+  const [newTableLabel, setNewTableLabel] = useState("");
+  const [newTableStatus, setNewTableStatus] = useState<TableStatus>("Available");
+  const [candidateTableId, setCandidateTableId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string>(initialOrders[0].id);
   const [showTableModal, setShowTableModal] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
@@ -341,6 +291,14 @@ export default function Home() {
       return searchable.includes(query);
     });
   }, [menuItems, menuSearch]);
+
+  const tableStats = useMemo(() => {
+    const occupied = tables.filter((table) => table.status === "Occupied").length;
+    return {
+      occupied,
+      available: tables.length - occupied,
+    };
+  }, [tables]);
 
   useEffect(() => {
     if (!banner) {
@@ -409,7 +367,7 @@ export default function Home() {
   const customerName = currentOrder?.customer ?? "";
   const items = useMemo(() => currentOrder?.items ?? [], [currentOrder]);
   const selectedTable = currentOrder?.tableId
-    ? tableNodes.find((table) => table.id === currentOrder.tableId) ?? null
+    ? tables.find((table) => table.id === currentOrder.tableId) ?? null
     : null;
 
   const subtotal = useMemo(() => items.reduce((acc, item) => acc + item.qty * item.price, 0), [items]);
@@ -455,6 +413,148 @@ export default function Home() {
     );
   }
 
+  function toggleTableStatus(tableId: string) {
+    const target = tables.find((table) => table.id === tableId);
+    if (!target) {
+      return;
+    }
+
+    const nextStatus: TableStatus = target.status === "Occupied" ? "Available" : "Occupied";
+
+    setTables((prev) =>
+      prev.map((table) =>
+        table.id === tableId
+          ? { ...table, status: nextStatus }
+          : table,
+      ),
+    );
+
+    if (nextStatus === "Available") {
+      setOrders((prev) =>
+        prev.map((order) =>
+          !order.settled && order.tableId === tableId
+            ? { ...order, tableId: null }
+            : order,
+        ),
+      );
+    }
+  }
+
+  function addNewTable() {
+    const trimmedLabel = newTableLabel.trim();
+    if (!trimmedLabel) {
+      setBanner("Enter a table number or name first.");
+      return;
+    }
+
+    const normalizedLabel = trimmedLabel.toUpperCase().startsWith("T")
+      ? trimmedLabel.toUpperCase()
+      : `T${trimmedLabel.toUpperCase()}`;
+
+    const duplicate = tables.some((table) => table.label.toUpperCase() === normalizedLabel);
+    if (duplicate) {
+      setBanner(`${normalizedLabel} already exists.`);
+      return;
+    }
+
+    setTables((prev) => [
+      ...prev,
+      {
+        id: normalizedLabel,
+        label: normalizedLabel,
+        status: newTableStatus,
+      },
+    ]);
+
+    setNewTableLabel("");
+    setNewTableStatus("Available");
+    setBanner(`Added ${normalizedLabel} as ${newTableStatus.toLowerCase()}.`);
+  }
+
+  function selectTable(tableId: string) {
+    if (!currentOrder) {
+      return;
+    }
+
+    const selected = tables.find((table) => table.id === tableId);
+    if (!selected) {
+      return;
+    }
+
+    const sameTable = currentOrder.tableId === tableId;
+    if (selected.status === "Occupied" && !sameTable) {
+      setBanner(`Table ${tableId} is already occupied.`);
+      return;
+    }
+
+    setCandidateTableId(tableId);
+    setBanner(`Selected table ${tableId}. Confirm to assign.`);
+  }
+
+  function confirmSelectedTable() {
+    if (!currentOrder) {
+      return;
+    }
+
+    if (!candidateTableId) {
+      setBanner("Select a table first.");
+      return;
+    }
+
+    const tableId = candidateTableId;
+    const selected = tables.find((table) => table.id === tableId);
+    if (!selected) {
+      return;
+    }
+
+    const sameTable = currentOrder.tableId === tableId;
+    if (selected.status === "Occupied" && !sameTable) {
+      setBanner(`Table ${tableId} is already occupied.`);
+      return;
+    }
+
+    const previousTableId = currentOrder.tableId;
+
+    setOrders((prev) =>
+      prev.map((order) =>
+        order.id === currentOrder.id ? { ...order, tableId } : order,
+      ),
+    );
+
+    setTables((prev) =>
+      prev.map((table) => {
+        if (table.id === tableId) {
+          return { ...table, status: "Occupied" };
+        }
+
+        if (
+          previousTableId &&
+          table.id === previousTableId &&
+          previousTableId !== tableId
+        ) {
+          const stillUsedByOtherOrder = orders.some(
+            (order) =>
+              !order.settled &&
+              order.id !== currentOrder.id &&
+              order.tableId === previousTableId,
+          );
+
+          if (!stillUsedByOtherOrder) {
+            return { ...table, status: "Available" };
+          }
+        }
+
+        return table;
+      }),
+    );
+
+    setBanner(`Assigned table ${tableId} to the active order.`);
+  }
+
+  useEffect(() => {
+    setCandidateTableId(currentOrder?.tableId ?? null);
+  }, [currentOrder?.id, currentOrder?.tableId]);
+
   useEffect(() => {
     const savedTheme = window.localStorage.getItem("pos-theme");
     window.setTimeout(() => {
@@ -474,7 +574,7 @@ export default function Home() {
 
   const isDark = theme === "dark";
 
-  const palette = {
+  const palette: Palette = {
     shell: isDark ? "bg-[#05070d] text-slate-100" : "bg-[#f5eee8] text-slate-900",
     backdrop: isDark
       ? "bg-[radial-gradient(circle_at_14%_18%,rgba(232,92,78,0.18),transparent_30%),radial-gradient(circle_at_82%_22%,rgba(249,168,37,0.12),transparent_34%),radial-gradient(circle_at_54%_88%,rgba(56,189,248,0.12),transparent_36%),linear-gradient(160deg,#05070d,#0b1020_48%,#05070d)]"
@@ -549,6 +649,8 @@ export default function Home() {
       return;
     }
 
+    const tableId = currentOrder.tableId;
+
     setOrders((prev) =>
       prev.map((order) =>
         order.id === currentOrder.id
@@ -556,6 +658,17 @@ export default function Home() {
           : order,
       ),
     );
+
+    if (tableId) {
+      setTables((prev) =>
+        prev.map((table) =>
+          table.id === tableId ? { ...table, status: "Available" } : table,
+        ),
+      );
+    }
+
+    setCandidateTableId(null);
+
     setBanner(`${currentOrder.id} settled via ${payment}.`);
   }
 
@@ -798,318 +911,69 @@ export default function Home() {
           </header>
 
           <div className="relative z-[10] grid flex-1 gap-4 p-4 md:grid-cols-[0.82fr_1.18fr] md:p-5">
-            <section className={`rounded-[28px] p-3.5 backdrop-blur-lg ${palette.panel}`}>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className={palette.textStrong}>Active Orders</h2>
-                <span className={`text-xs uppercase tracking-[0.18em] ${isDark ? "text-[#ff9f8f]" : "text-[#cc4b3e]"}`}>Live</span>
-              </div>
+            <ActiveOrdersPanel
+              isDark={isDark}
+              palette={palette}
+              openOrders={openOrders}
+              currentOrderId={currentOrder?.id}
+              money={money}
+              newOrderCustomer={newOrderCustomer}
+              newOrderMobile={newOrderMobile}
+              newOrderType={newOrderType}
+              isSavingNewOrder={isSavingNewOrder}
+              onCustomerChange={setNewOrderCustomer}
+              onMobileChange={setNewOrderMobile}
+              onTypeChange={setNewOrderType}
+              onCreateOrder={handleCreateOrder}
+              onSelectOrder={setSelectedOrderId}
+            />
 
-              <div className={`mb-3 rounded-2xl border p-3 ${palette.panelSoft}`}>
-                <p className={`text-xs font-semibold uppercase tracking-[0.16em] ${palette.textMuted}`}>
-                  Add New Order
-                </p>
-                <div className="mt-2 grid gap-2">
-                  <input
-                    value={newOrderCustomer}
-                    onChange={(event) => setNewOrderCustomer(event.target.value)}
-                    placeholder="Customer name"
-                    className={`rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
-                  />
-                  <input
-                    value={newOrderMobile}
-                    onChange={(event) => setNewOrderMobile(event.target.value)}
-                    placeholder="Mobile number"
-                    className={`rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
-                  />
-                  <select
-                    value={newOrderType}
-                    onChange={(event) => setNewOrderType(event.target.value as OrderType)}
-                    className={`rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
-                  >
-                    <option value="Dine-In">Dine-In</option>
-                    <option value="Takeaway">Takeaway</option>
-                    <option value="Delivery">Delivery</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={handleCreateOrder}
-                    disabled={isSavingNewOrder}
-                    className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
-                      isDark
-                        ? "bg-[#f06a5a]/20 text-[#ffd8d3] hover:bg-[#f06a5a]/28 disabled:opacity-60"
-                        : "bg-[#cc4b3e]/12 text-[#7f1d16] hover:bg-[#cc4b3e]/18 disabled:opacity-60"
-                    }`}
-                  >
-                    <Plus className="h-4 w-4" />
-                    {isSavingNewOrder ? "Saving..." : "Save New Order"}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2.5">
-                {openOrders.map((order) => (
-                  <motion.article
-                    key={order.id}
-                    whileHover={{ y: -2 }}
-                    className={`cursor-pointer rounded-2xl border p-3 shadow-[0_12px_30px_rgba(2,6,23,0.18)] ${order.id === currentOrder?.id ? palette.sidebarActive : palette.panelSoft}`}
-                    onClick={() => setSelectedOrderId(order.id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className={`text-sm font-semibold ${palette.textStrong}`}>{order.id}</p>
-                      <span className={`rounded-lg px-2 py-0.5 text-xs ${palette.headerPill}`}>
-                        {order.elapsed}
-                      </span>
-                    </div>
-                    <p className={`mt-2 text-sm ${palette.textMuted}`}>{order.customer}</p>
-                    <div className="mt-3 flex items-center justify-between text-sm">
-                      <span className={palette.highlight}>{order.type}</span>
-                      <span className={`font-semibold ${palette.textStrong}`}>{money(order.amount)}</span>
-                    </div>
-                    <p className="mt-1 text-xs text-slate-400">{order.itemCount} items</p>
-                  </motion.article>
-                ))}
-                {!openOrders.length ? (
-                  <div className={`rounded-2xl border p-4 text-sm ${palette.panelSoft}`}>
-                    All orders are settled. Start a new ticket from the POS flow.
-                  </div>
-                ) : null}
-              </div>
-            </section>
-
-            <section className={`flex flex-col rounded-[28px] p-3.5 backdrop-blur-lg ${palette.panel}`}>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className={`rounded-2xl p-3 backdrop-blur-md ${palette.panelSoft}`}>
-                  <span className={`mb-1 inline-flex items-center gap-2 text-xs uppercase tracking-[0.16em] ${palette.textMuted}`}>
-                    <Bike className="h-3.5 w-3.5" />
-                    Mobile
-                  </span>
-                  <input
-                    value={mobile}
-                    onChange={(event) => updateCurrentOrder({ mobile: event.target.value })}
-                    className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-500"
-                    placeholder="Enter mobile"
-                  />
-                </label>
-
-                <label className={`rounded-2xl p-3 backdrop-blur-md ${palette.panelSoft}`}>
-                  <span className={`mb-1 inline-flex items-center gap-2 text-xs uppercase tracking-[0.16em] ${palette.textMuted}`}>
-                    <User className="h-3.5 w-3.5" />
-                    Name
-                  </span>
-                  <input
-                    value={customerName}
-                    onChange={(event) => updateCurrentOrder({ customer: event.target.value })}
-                    className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-500"
-                    placeholder="Customer name"
-                  />
-                </label>
-              </div>
-
-              <div className={`mt-4 rounded-2xl border p-2.5 ${palette.panelSoft}`}>
-                <label className="relative block">
-                  <Search className={`pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${palette.textMuted}`} />
-                  <input
-                    value={menuSearch}
-                    onChange={(event) => setMenuSearch(event.target.value)}
-                    placeholder="Search food by name or tag"
-                    className={`w-full rounded-xl border py-2 pl-9 pr-3 text-sm outline-none ${palette.headerPill}`}
-                  />
-                </label>
-              </div>
-
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                {filteredMenuItems.map((menu) => (
-                  <button
-                    key={menu.id}
-                    type="button"
-                    onClick={() => addItem(menu)}
-                    className={`rounded-2xl p-3 text-left transition ${palette.gridCard} ${isDark ? "hover:bg-[#f06a5a]/12" : "hover:bg-[#cc4b3e]/8"}`}
-                  >
-                    <p className={`text-sm font-medium ${palette.textStrong}`}>{menu.name}</p>
-                    <p className={`mt-1 text-xs ${palette.textMuted}`}>{menu.tag}</p>
-                    <p className={`mt-2 text-sm ${palette.highlight}`}>{money(menu.price)}</p>
-                  </button>
-                ))}
-                {!filteredMenuItems.length ? (
-                  <div className={`col-span-full rounded-2xl border p-3 text-sm ${palette.panelSoft} ${palette.textMuted}`}>
-                    No matching food items found.
-                  </div>
-                ) : null}
-              </div>
-
-              <div className={`mt-4 flex-1 overflow-auto rounded-2xl p-3 ${palette.tableGrid}`}>
-                <div className="space-y-2">
-                  {items.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`grid grid-cols-[1.2fr_auto_auto_auto] items-center gap-2 rounded-xl px-3 py-2 ${palette.gridCard}`}
-                    >
-                      <p className={`text-sm ${palette.textStrong}`}>{item.name}</p>
-                      <button
-                        type="button"
-                        onClick={() => updateQty(item.id, -1)}
-                        className={`rounded-lg border px-2 py-1 text-xs ${palette.headerPill}`}
-                      >
-                        -
-                      </button>
-                      <span className={`text-sm ${palette.orderText}`}>{item.qty}</span>
-                      <button
-                        type="button"
-                        onClick={() => updateQty(item.id, 1)}
-                        className={`rounded-lg border px-2 py-1 text-xs ${palette.headerPill}`}
-                      >
-                        +
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className={`mt-4 rounded-2xl p-3 ${palette.totals}`}>
-                <div className={`flex items-center justify-between text-sm ${palette.textMuted}`}>
-                  <span>Subtotal</span>
-                  <span>{money(subtotal)}</span>
-                </div>
-                <div className={`mt-1 flex items-center justify-between text-sm ${palette.textMuted}`}>
-                  <span>Tax</span>
-                  <span>{money(tax)}</span>
-                </div>
-                <div className={`mt-2 flex items-center justify-between border-t pt-2 text-base font-semibold ${palette.textStrong} ${isDark ? "border-white/10" : "border-black/5"}`}>
-                  <span>Grand Total</span>
-                  <span>{money(grandTotal)}</span>
-                </div>
-              </div>
-
-              <div className={`mt-4 rounded-3xl p-3 backdrop-blur-lg ${palette.paymentPanel}`}>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  {([
-                    { key: "Cash", icon: Wallet },
-                    { key: "Card", icon: CreditCard },
-                    { key: "UPI", icon: QrCode },
-                  ] as { key: PaymentType; icon: React.ComponentType<{ className?: string }> }[]).map((option) => (
-                    <button
-                      key={option.key}
-                      type="button"
-                      onClick={() => updateCurrentOrder({ payment: option.key })}
-                      className={`flex items-center gap-2 rounded-2xl border px-3 py-3 text-sm font-medium transition ${
-                        payment === option.key
-                          ? isDark
-                            ? "border-[#f06a5a]/35 bg-[#f06a5a]/15 text-[#ffd8d3]"
-                            : "border-[#cc4b3e]/20 bg-[#cc4b3e]/12 text-[#7f1d16]"
-                          : palette.headerPill
-                      }`}
-                    >
-                      <option.icon className="h-5 w-5" />
-                      {option.key}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={handleSaveAndPrint}
-                    className={`inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold ${isDark ? "border-[#f06a5a]/35 bg-[#f06a5a]/18 text-[#ffd8d3]" : "border-[#cc4b3e]/20 bg-[#cc4b3e]/12 text-[#7f1d16]"}`}
-                  >
-                    <Printer className="h-4 w-4" />
-                    Save & Print
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSettleAndSave}
-                    disabled={!currentOrder || items.length === 0}
-                    className={`inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold ${isDark ? "border-[#6be7cf]/25 bg-[#6be7cf]/12 text-[#d8fff7]" : "border-[#2f9e88]/20 bg-[#2f9e88]/10 text-[#14564a]"}`}
-                  >
-                    <Calculator className="h-4 w-4" />
-                    Settle & Save
-                  </button>
-                </div>
-              </div>
-            </section>
+            <BillEditorPanel
+              isDark={isDark}
+              palette={palette}
+              mobile={mobile}
+              customerName={customerName}
+              menuSearch={menuSearch}
+              filteredMenuItems={filteredMenuItems}
+              items={items}
+              subtotal={subtotal}
+              tax={tax}
+              grandTotal={grandTotal}
+              payment={payment}
+              hasCurrentOrder={Boolean(currentOrder)}
+              onMobileChange={(value) => updateCurrentOrder({ mobile: value })}
+              onCustomerNameChange={(value) => updateCurrentOrder({ customer: value })}
+              onMenuSearchChange={setMenuSearch}
+              onAddItem={addItem}
+              onUpdateQty={updateQty}
+              onPaymentChange={(value) => updateCurrentOrder({ payment: value })}
+              onSaveAndPrint={handleSaveAndPrint}
+              onSettleAndSave={handleSettleAndSave}
+              money={money}
+            />
           </div>
         </div>
       </div>
 
-      <AnimatePresence>
-        {showTableModal ? (
-          <Dialog open={showTableModal} onClose={setShowTableModal} className="relative z-[300]">
-              <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className={`fixed inset-0 z-[300] backdrop-blur-sm ${palette.modalOverlay}`}
-            />
-            <div className="fixed inset-0 z-[310] flex items-center justify-center p-4">
-              <Dialog.Panel
-                as={motion.div}
-                initial={{ opacity: 0, y: 20, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.96 }}
-                className={`relative z-[320] w-full max-w-2xl rounded-3xl p-5 backdrop-blur-xl ${palette.modal}`}
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <Dialog.Title className={`inline-flex items-center gap-2 text-xl font-semibold ${palette.textStrong}`}>
-                    <LayoutGrid className={`h-5 w-5 ${isDark ? "text-[#ff9f8f]" : "text-[#cc4b3e]"}`} />
-                    Select Table From Floor Map
-                  </Dialog.Title>
-                  <button
-                    type="button"
-                    onClick={() => setShowTableModal(false)}
-                    className={`rounded-xl border p-2 ${palette.headerPill}`}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className={`relative h-[320px] rounded-2xl border ${palette.modalGrid}`}>
-                  <div className="absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:52px_52px]" />
-
-                  {tableNodes.map((table) => {
-                    const isSelected = selectedTable?.id === table.id;
-
-                    return (
-                      <button
-                        key={table.id}
-                        type="button"
-                        onClick={() => updateCurrentOrder({ tableId: table.id })}
-                        style={{ top: table.top, left: table.left }}
-                        className={`absolute grid h-16 w-16 place-items-center rounded-xl border text-sm font-semibold transition ${
-                          table.status === "Available"
-                            ? isDark
-                              ? "border-emerald-300/35 bg-emerald-300/18 text-emerald-100"
-                              : "border-emerald-300/25 bg-emerald-300/12 text-emerald-800"
-                            : isDark
-                              ? "border-rose-300/35 bg-rose-300/18 text-rose-100"
-                              : "border-rose-300/25 bg-rose-300/12 text-rose-800"
-                        } ${isSelected ? `ring-2 ${isDark ? "ring-[#ff9f8f]" : "ring-[#cc4b3e]"}` : ""}`}
-                      >
-                        {table.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-4 flex items-center justify-between">
-                  <div className={`inline-flex items-center gap-2 text-sm ${palette.textMuted}`}>
-                    <span className="inline-block h-3 w-3 rounded-full bg-emerald-300" />
-                    Available
-                    <span className="ml-3 inline-block h-3 w-3 rounded-full bg-rose-300" />
-                    Occupied
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowTableModal(false)}
-                    className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium ${isDark ? "border-[#f06a5a]/30 bg-[#f06a5a]/15 text-[#ffd8d3]" : "border-[#cc4b3e]/20 bg-[#cc4b3e]/12 text-[#7f1d16]"}`}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Confirm {selectedTable?.label ?? "table"}
-                  </button>
-                </div>
-              </Dialog.Panel>
-            </div>
-          </Dialog>
-        ) : null}
-      </AnimatePresence>
+      <TableManagementModal
+        show={showTableModal}
+        onClose={() => setShowTableModal(false)}
+        isDark={isDark}
+        palette={palette}
+        tables={tables}
+        selectedTableLabel={selectedTable?.label}
+        selectedTableId={currentOrder?.tableId}
+        candidateTableId={candidateTableId}
+        tableStats={tableStats}
+        newTableLabel={newTableLabel}
+        newTableStatus={newTableStatus}
+        onNewTableLabelChange={setNewTableLabel}
+        onNewTableStatusChange={setNewTableStatus}
+        onAddTable={addNewTable}
+        onSelectTable={selectTable}
+        onToggleStatus={toggleTableStatus}
+        onConfirmCurrentOrderTable={confirmSelectedTable}
+      />
 
       <div className={`fixed bottom-4 right-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium ${palette.floatingBadge}`}>
         <IndianRupee className="h-3.5 w-3.5" />

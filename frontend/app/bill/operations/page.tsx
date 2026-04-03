@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ClipboardCheck, MoonStar, PackageCheck, SunMedium, UtensilsCrossed } from "lucide-react";
+import { BillSidebar } from "@/components/bill/BillSidebar";
 
 export default function OperationsPage() {
   const [theme, setTheme] = useState<"dark" | "light">("light");
@@ -28,14 +29,17 @@ export default function OperationsPage() {
   const isDark = theme === "dark";
 
   return (
-    <main
-      className={`min-h-screen p-6 ${
+    <div
+      className={`min-h-screen ${
         isDark
           ? "bg-[radial-gradient(circle_at_top_left,#1e0d0b,#0b0f1a_45%,#080b14)] text-slate-100"
           : "bg-[radial-gradient(circle_at_top_left,#ffe7d6,#fff6ee_40%,#fffaf5)] text-slate-900"
       }`}
     >
-      <div className="mx-auto max-w-6xl space-y-6">
+      <div className="flex min-h-screen">
+        <BillSidebar isDark={isDark} />
+        <main className="flex-1 p-6">
+          <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/bill"
@@ -98,7 +102,9 @@ export default function OperationsPage() {
             <p className="mt-1 text-2xl font-semibold">5</p>
           </article>
         </section>
+          </div>
+        </main>
       </div>
-    </main>
+    </div>
   );
 }
