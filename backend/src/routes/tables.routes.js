@@ -172,4 +172,28 @@ router.patch("/:id/release", async (req, res, next) => {
   }
 });
 
+router.delete("/:id", async (req, res, next) => {
+  try {
+    const tableId = normalizeTableLabel(req.params.id);
+    const table = await Table.findOne({ tableId });
+    if (!table) {
+      return res.status(404).json({ message: "Table not found" });
+    }
+
+    await Order.updateMany(
+      { tableId, settled: false },
+      { $set: { tableId: null } },
+    );
+
+    await Table.deleteOne({ tableId });
+
+    res.json({
+      message: `Deleted ${tableId}`,
+      tableId,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

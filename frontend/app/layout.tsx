@@ -15,6 +15,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Tabio",
   description: "All-in-one software powering SME growth with modern billing and operations tools.",
+  icons: {
+    icon: "/metaicon.svg",
+    shortcut: "/metaicon.svg",
+    apple: "/metaicon.svg",
+  },
 };
 
 export default function RootLayout({

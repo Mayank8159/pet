@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Tabio icon">
+  <defs>
+    <linearGradient id="tabioBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#001a31" />
+      <stop offset="100%" stop-color="#032448" />
+    </linearGradient>
+    <linearGradient id="tabioAccent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#cf1e38" />
+      <stop offset="100%" stop-color="#ff6b9d" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#tabioBg)" />
+  <path d="M16 18h32v8H36v20h-8V26H16z" fill="white" />
+  <circle cx="46" cy="46" r="7" fill="url(#tabioAccent)" />
+</svg>

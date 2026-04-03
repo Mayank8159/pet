@@ -2,7 +2,7 @@
 
 import { Dialog } from "@headlessui/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, LayoutGrid, Plus, Sparkles, X } from "lucide-react";
+import { ChevronDown, LayoutGrid, Plus, Sparkles, Trash2, X } from "lucide-react";
 import type { Palette, TableNode, TableStatus } from "./types";
 
 type TableManagementModalProps = {
@@ -22,6 +22,7 @@ type TableManagementModalProps = {
   onAddTable: () => void;
   onSelectTable: (tableId: string) => void;
   onToggleStatus: (tableId: string) => void;
+  onDeleteTable: (tableId: string) => void;
   onConfirmCurrentOrderTable: () => void;
 };
 
@@ -42,6 +43,7 @@ export function TableManagementModal({
   onAddTable,
   onSelectTable,
   onToggleStatus,
+  onDeleteTable,
   onConfirmCurrentOrderTable,
 }: TableManagementModalProps) {
   return (
@@ -233,6 +235,19 @@ export function TableManagementModal({
                             }`}
                           >
                             {isAvailable ? "Mark Occupied" : "Mark Available"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => onDeleteTable(table.id)}
+                            className={`mt-2 inline-flex w-full items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm font-medium transition ${
+                              isDark
+                                ? "border-rose-300/30 bg-rose-500/15 text-rose-100 hover:bg-rose-500/25"
+                                : "border-rose-300/40 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                            }`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete Table
                           </button>
                         </div>
                       );

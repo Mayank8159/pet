@@ -204,6 +204,19 @@ async function patchWithFallback<TBody, TResponse>(paths: string[], body: TBody)
   return null;
 }
 
+async function deleteWithFallback<TResponse>(paths: string[]): Promise<TResponse | null> {
+  for (const path of paths) {
+    try {
+      const response = await axios.delete<TResponse>(`${POS_API_BASE_URL}${path}`, { timeout: 6000 });
+      return response.data;
+    } catch {
+      // Try next fallback endpoint.
+    }
+  }
+
+  return null;
+}
+
 function money(value: number) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -458,6 +471,44 @@ export default function Home() {
     setNewTableLabel("");
     setNewTableStatus("Available");
     setBanner(`Added ${normalizedLabel} as ${newTableStatus.toLowerCase()}.`);
+  }
+
+  async function deleteTable(tableId: string) {
+    const target = tables.find((table) => table.id === tableId);
+    if (!target) {
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      const confirmed = window.confirm(`Delete ${target.label}? This will remove table assignment from active orders.`);
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    const response = await deleteWithFallback<{ message?: string }>(
+      [`/api/pos/tables/${tableId}`, `/api/tables/${tableId}`, `/tables/${tableId}`],
+    );
+
+    if (!response) {
+      setBanner(`Could not delete ${tableId}.`);
+      return;
+    }
+
+    setTables((prev) => prev.filter((table) => table.id !== tableId));
+    setOrders((prev) =>
+      prev.map((order) =>
+        !order.settled && order.tableId === tableId
+          ? { ...order, tableId: null }
+          : order,
+      ),
+    );
+
+    if (candidateTableId === tableId) {
+      setCandidateTableId(null);
+    }
+
+    setBanner(response.message ?? `Deleted ${tableId}.`);
   }
 
   function selectTable(tableId: string) {
@@ -1025,6 +1076,7 @@ export default function Home() {
         onAddTable={addNewTable}
         onSelectTable={selectTable}
         onToggleStatus={toggleTableStatus}
+        onDeleteTable={deleteTable}
         onConfirmCurrentOrderTable={confirmSelectedTable}
       />
 
