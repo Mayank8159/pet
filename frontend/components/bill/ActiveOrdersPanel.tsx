@@ -2,8 +2,8 @@
 
 import { Listbox } from "@headlessui/react";
 import { motion } from "framer-motion";
-import { ChevronDown, Plus, AlertCircle, CheckCircle2 } from "lucide-react";
-import type { BillOrder, OrderType, Palette } from "./types";
+import { ChevronDown, Plus, AlertCircle, CheckCircle2, TableProperties } from "lucide-react";
+import type { BillOrder, OrderType, Palette, TableNode } from "./types";
 import { getOrderColorStatus, getOrderColorClasses } from "./orderStatusUtils";
 
 type ActiveOrdersPanelProps = {
@@ -15,10 +15,14 @@ type ActiveOrdersPanelProps = {
   newOrderCustomer: string;
   newOrderMobile: string;
   newOrderType: OrderType;
+  tables: TableNode[];
+  newOrderTableId: string | null;
   isSavingNewOrder: boolean;
   onCustomerChange: (value: string) => void;
   onMobileChange: (value: string) => void;
   onTypeChange: (value: OrderType) => void;
+  onNewOrderTableChange: (tableId: string | null) => void;
+  onOpenTableView: () => void;
   onCreateOrder: () => void;
   onSelectOrder: (orderId: string) => void;
 };
@@ -32,10 +36,14 @@ export function ActiveOrdersPanel({
   newOrderCustomer,
   newOrderMobile,
   newOrderType,
+  tables,
+  newOrderTableId,
   isSavingNewOrder,
   onCustomerChange,
   onMobileChange,
   onTypeChange,
+  onNewOrderTableChange,
+  onOpenTableView,
   onCreateOrder,
   onSelectOrder,
 }: ActiveOrdersPanelProps) {
@@ -82,6 +90,53 @@ export function ActiveOrdersPanel({
               </Listbox.Options>
             </div>
           </Listbox>
+          {newOrderType === "Dine-In" ? (
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <Listbox value={newOrderTableId} onChange={onNewOrderTableChange}>
+                <div className="relative z-[130]">
+                  <Listbox.Button className={palette.dropdownBase ?? `w-full appearance-none rounded-xl border px-3 py-2 pr-9 text-sm outline-none ${palette.headerPill}`}>
+                    <span>
+                      {newOrderTableId
+                        ? (tables.find((table) => table.id === newOrderTableId)?.label ?? newOrderTableId)
+                        : "Select table"}
+                    </span>
+                    <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 ${isDark ? "text-slate-300" : "text-slate-500"}`} />
+                  </Listbox.Button>
+                  <Listbox.Options className={palette.dropdownMenu ?? `absolute z-[160] mt-1 w-full rounded-xl border p-1 text-sm backdrop-blur-xl shadow-[0_18px_40px_rgba(2,6,23,0.35)] ${palette.sectionMenu}`}>
+                    <Listbox.Option
+                      value={null}
+                      className={({ active }) =>
+                        `cursor-pointer rounded-lg px-3 py-2 ${active ? (palette.dropdownOptionActive ?? palette.sectionActive) : palette.textMuted}`
+                      }
+                    >
+                      Select table
+                    </Listbox.Option>
+                    {tables
+                      .filter((table) => table.status === "Available" || table.id === newOrderTableId)
+                      .map((table) => (
+                        <Listbox.Option
+                          key={table.id}
+                          value={table.id}
+                          className={({ active }) =>
+                            `cursor-pointer rounded-lg px-3 py-2 ${active ? (palette.dropdownOptionActive ?? palette.sectionActive) : palette.textMuted}`
+                          }
+                        >
+                          {table.label} ({table.status})
+                        </Listbox.Option>
+                      ))}
+                  </Listbox.Options>
+                </div>
+              </Listbox>
+              <button
+                type="button"
+                onClick={onOpenTableView}
+                className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium ${palette.selectTable}`}
+              >
+                <TableProperties className="h-4 w-4" />
+                Table View
+              </button>
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={onCreateOrder}

@@ -1,21 +1,14 @@
 "use client";
 
-import { Listbox } from "@headlessui/react";
 import axios from "axios";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3,
-  ChevronDown,
   ClipboardList,
   FileText,
-  Home as HomeIcon,
   IndianRupee,
   MoonStar,
   PieChart,
   Settings,
-  ShoppingBag,
-  TableProperties,
-  Truck,
   SunMedium,
 } from "lucide-react";
 import Link from "next/link";
@@ -72,14 +65,6 @@ type BackendTable = {
   label?: string;
   status?: string;
   assignedOrderId?: string | null;
-};
-
-const sections: SectionType[] = ["AC", "Non-AC", "Rooftop"];
-
-const orderTypeMeta: Record<OrderType, { icon: React.ComponentType<{ className?: string }> }> = {
-  Delivery: { icon: Truck },
-  Takeaway: { icon: ShoppingBag },
-  "Dine-In": { icon: HomeIcon },
 };
 
 const POS_API_BASE_URL = process.env.NEXT_PUBLIC_POS_API_BASE_URL ?? "http://localhost:8000";
@@ -237,6 +222,7 @@ export default function Home() {
   const [newOrderCustomer, setNewOrderCustomer] = useState("");
   const [newOrderMobile, setNewOrderMobile] = useState("");
   const [newOrderType, setNewOrderType] = useState<OrderType>("Dine-In");
+  const [newOrderTableId, setNewOrderTableId] = useState<string | null>(null);
   const [isSavingNewOrder, setIsSavingNewOrder] = useState(false);
   const [newTableLabel, setNewTableLabel] = useState("");
   const [newTableStatus, setNewTableStatus] = useState<TableStatus>("Available");
@@ -348,14 +334,12 @@ export default function Home() {
     return openOrders[0] ?? null;
   }, [orders, selectedOrderId, openOrders]);
 
-  const orderType = currentOrder?.type ?? "Dine-In";
-  const section = currentOrder?.section ?? "AC";
   const payment = currentOrder?.payment ?? "UPI";
   const mobile = currentOrder?.mobile ?? "";
   const customerName = currentOrder?.customer ?? "";
   const items = useMemo(() => currentOrder?.items ?? [], [currentOrder]);
-  const selectedTable = currentOrder?.tableId
-    ? tables.find((table) => table.id === currentOrder.tableId) ?? null
+  const selectedNewOrderTable = newOrderTableId
+    ? tables.find((table) => table.id === newOrderTableId) ?? null
     : null;
 
   const subtotal = useMemo(() => items.reduce((acc, item) => acc + item.qty * item.price, 0), [items]);
@@ -399,6 +383,14 @@ export default function Home() {
         };
       }),
     );
+  }
+
+  function handleNewOrderTypeChange(value: OrderType) {
+    setNewOrderType(value);
+    if (value !== "Dine-In") {
+      setNewOrderTableId(null);
+      setCandidateTableId(null);
+    }
   }
 
   async function toggleTableStatus(tableId: string) {
@@ -512,16 +504,12 @@ export default function Home() {
   }
 
   function selectTable(tableId: string) {
-    if (!currentOrder) {
-      return;
-    }
-
     const selected = tables.find((table) => table.id === tableId);
     if (!selected) {
       return;
     }
 
-    const sameTable = currentOrder.tableId === tableId;
+    const sameTable = newOrderTableId === tableId;
     if (selected.status === "Occupied" && !sameTable) {
       setBanner(`Table ${tableId} is already occupied.`);
       return;
@@ -532,10 +520,6 @@ export default function Home() {
   }
 
   async function confirmSelectedTable() {
-    if (!currentOrder) {
-      return;
-    }
-
     if (!candidateTableId) {
       setBanner("Select a table first.");
       return;
@@ -547,65 +531,20 @@ export default function Home() {
       return;
     }
 
-    const sameTable = currentOrder.tableId === tableId;
+    const sameTable = newOrderTableId === tableId;
     if (selected.status === "Occupied" && !sameTable) {
       setBanner(`Table ${tableId} is already occupied.`);
       return;
     }
 
-    const previousTableId = currentOrder.tableId;
-
-    const assignResponse = await patchWithFallback<{ orderId: string }, { table?: BackendTable }>(
-      [`/api/pos/tables/${tableId}/assign`, `/api/tables/${tableId}/assign`, `/tables/${tableId}/assign`],
-      { orderId: currentOrder.id },
-    );
-
-    if (!assignResponse) {
-      setBanner("Could not assign table on backend.");
-      return;
-    }
-
-    setOrders((prev) =>
-      prev.map((order) =>
-        order.id === currentOrder.id ? { ...order, tableId } : order,
-      ),
-    );
-
-    const persistedAssignedTable = assignResponse.table ? mapTableFromBackend(assignResponse.table, 0) : null;
-
-    setTables((prev) =>
-      prev.map((table) => {
-        if (table.id === tableId) {
-          return persistedAssignedTable ?? { ...table, status: "Occupied" };
-        }
-
-        if (
-          previousTableId &&
-          table.id === previousTableId &&
-          previousTableId !== tableId
-        ) {
-          const stillUsedByOtherOrder = orders.some(
-            (order) =>
-              !order.settled &&
-              order.id !== currentOrder.id &&
-              order.tableId === previousTableId,
-          );
-
-          if (!stillUsedByOtherOrder) {
-            return { ...table, status: "Available" };
-          }
-        }
-
-        return table;
-      }),
-    );
-
-    setBanner(`Assigned table ${tableId} to the active order.`);
+    setNewOrderTableId(tableId);
+    setShowTableModal(false);
+    setBanner(`Selected table ${tableId} for new order.`);
   }
 
   useEffect(() => {
-    setCandidateTableId(currentOrder?.tableId ?? null);
-  }, [currentOrder?.id, currentOrder?.tableId]);
+    setCandidateTableId(newOrderTableId ?? null);
+  }, [newOrderTableId]);
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem("pos-theme");
@@ -820,6 +759,7 @@ export default function Home() {
       mobile: mobileValue,
       type: newOrderType,
       section: "AC",
+      tableId: newOrderType === "Dine-In" ? newOrderTableId : null,
       payment: "UPI",
       items: [] as BackendOrderItem[],
       settled: false,
@@ -838,6 +778,19 @@ export default function Home() {
       if (!newOrder.elapsed) {
         newOrder.elapsed = "Now";
       }
+
+      if (newOrderType === "Dine-In" && newOrderTableId) {
+        await patchWithFallback<{ orderId: string }, { table?: BackendTable }>(
+          [`/api/pos/tables/${newOrderTableId}/assign`, `/api/tables/${newOrderTableId}/assign`, `/tables/${newOrderTableId}/assign`],
+          { orderId: newOrder.id },
+        );
+        setTables((prev) =>
+          prev.map((table) =>
+            table.id === newOrderTableId ? { ...table, status: "Occupied" } : table,
+          ),
+        );
+      }
+
       setBanner(`Saved ${newOrder.id} to backend.`);
     } else {
       const fallbackId = `#N-${String(Date.now()).slice(-6)}`;
@@ -850,7 +803,7 @@ export default function Home() {
         elapsed: "Now",
         mobile: mobileValue,
         section: "AC",
-        tableId: null,
+        tableId: newOrderType === "Dine-In" ? newOrderTableId : null,
         payment: "UPI",
         items: [],
         settled: false,
@@ -866,6 +819,8 @@ export default function Home() {
     setNewOrderCustomer("");
     setNewOrderMobile("");
     setNewOrderType("Dine-In");
+    setNewOrderTableId(null);
+    setCandidateTableId(null);
     setIsSavingNewOrder(false);
   }
 
@@ -927,91 +882,6 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
-              <div className={`relative inline-flex rounded-2xl border p-1 bg-transparent ${palette.panel}`}>
-                {(["Delivery", "Takeaway", "Dine-In"] as OrderType[]).map((type) => {
-                  const Icon = orderTypeMeta[type].icon;
-                  const active = orderType === type;
-
-                  return (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() =>
-                        updateCurrentOrder({
-                          type,
-                          tableId: type === "Dine-In" ? currentOrder?.tableId ?? null : null,
-                        })
-                      }
-                      className="relative z-10 inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium"
-                    >
-                      {active ? (
-                        <motion.span
-                          layoutId="orderTypePill"
-                          className={`absolute inset-0 -z-10 rounded-xl ${palette.orderPill}`}
-                          transition={{ type: "spring", stiffness: 320, damping: 30 }}
-                        />
-                      ) : null}
-                      <Icon className={`h-4 w-4 ${active ? palette.orderText : "text-slate-500"}`} />
-                      <span className={active ? palette.orderText : "text-slate-600"}>{type}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <AnimatePresence mode="wait">
-                {orderType === "Dine-In" ? (
-                  <motion.div
-                    key="dine-controls"
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    className="flex flex-wrap items-center gap-2"
-                  >
-                    <Listbox value={section} onChange={(nextSection) => updateCurrentOrder({ section: nextSection })}>
-                      <div className="relative z-[140]">
-                        <Listbox.Button className={`relative z-[141] min-w-32 ${palette.dropdownBase}`}>
-                          <span>Section: {section}</span>
-                          <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 ${isDark ? "text-slate-300" : "text-slate-500"}`} />
-                        </Listbox.Button>
-                        <Listbox.Options className={palette.dropdownMenu}>
-                          {sections.map((option) => (
-                            <Listbox.Option
-                              key={option}
-                              value={option}
-                              className={({ active }) =>
-                                `cursor-pointer rounded-lg px-3 py-2 ${active ? palette.dropdownOptionActive : palette.textMuted}`
-                              }
-                            >
-                              {option}
-                            </Listbox.Option>
-                          ))}
-                        </Listbox.Options>
-                      </div>
-                    </Listbox>
-
-                    <button
-                      type="button"
-                      onClick={() => setShowTableModal(true)}
-                      className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium ${palette.selectTable}`}
-                    >
-                      <TableProperties className="h-4 w-4" />
-                      {selectedTable ? `Table: ${selectedTable.label}` : "Select table"}
-                    </button>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="non-dine-note"
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    className={`rounded-xl border px-3 py-2 text-sm ${palette.panelSoft} ${palette.textMuted}`}
-                  >
-                    {orderType === "Delivery" ? "Assign delivery partner" : "Counter pickup mode active"}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
           </header>
 
           <div className="relative z-[10] grid flex-1 gap-4 p-4 md:grid-cols-[0.82fr_1.18fr] md:p-5">
@@ -1024,10 +894,20 @@ export default function Home() {
               newOrderCustomer={newOrderCustomer}
               newOrderMobile={newOrderMobile}
               newOrderType={newOrderType}
+              tables={tables}
+              newOrderTableId={newOrderTableId}
               isSavingNewOrder={isSavingNewOrder}
               onCustomerChange={setNewOrderCustomer}
               onMobileChange={setNewOrderMobile}
-              onTypeChange={setNewOrderType}
+              onTypeChange={handleNewOrderTypeChange}
+              onNewOrderTableChange={setNewOrderTableId}
+              onOpenTableView={() => {
+                if (newOrderType !== "Dine-In") {
+                  return;
+                }
+                setCandidateTableId(newOrderTableId);
+                setShowTableModal(true);
+              }}
               onCreateOrder={handleCreateOrder}
               onSelectOrder={setSelectedOrderId}
             />
@@ -1065,8 +945,8 @@ export default function Home() {
         isDark={isDark}
         palette={palette}
         tables={tables}
-        selectedTableLabel={selectedTable?.label}
-        selectedTableId={currentOrder?.tableId}
+        selectedTableLabel={selectedNewOrderTable?.label}
+        selectedTableId={newOrderTableId}
         candidateTableId={candidateTableId}
         tableStats={tableStats}
         newTableLabel={newTableLabel}

@@ -137,7 +137,7 @@ export function TableManagementModal({
                   </div>
 
                   <div className={`mt-4 rounded-2xl border p-3 ${palette.panel}`}>
-                    <p className={`text-sm font-medium ${palette.textStrong}`}>Current Order</p>
+                    <p className={`text-sm font-medium ${palette.textStrong}`}>New Order Table</p>
                     <p className={`mt-1 text-sm ${palette.textMuted}`}>
                       {selectedTableLabel ? `Table ${selectedTableLabel} is assigned.` : "No table assigned yet."}
                     </p>
@@ -151,7 +151,7 @@ export function TableManagementModal({
                       className={`mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium ${isDark ? "border-white/10 bg-white/5 text-slate-100 disabled:opacity-50" : "border-black/5 bg-white text-slate-800 disabled:opacity-50"}`}
                     >
                       <Sparkles className="h-4 w-4" />
-                      Confirm assigned table
+                      Confirm selected table
                     </button>
                   </div>
                 </div>
@@ -160,7 +160,7 @@ export function TableManagementModal({
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <div>
                       <p className={`text-sm font-semibold uppercase tracking-[0.16em] ${palette.textMuted}`}>Floor Grid</p>
-                      <p className={`mt-1 text-sm ${palette.textMuted}`}>Click a table to assign it to the active order.</p>
+                      <p className={`mt-1 text-sm ${palette.textMuted}`}>Click a table to assign it to the new order.</p>
                     </div>
                     <div className={`rounded-2xl border px-3 py-2 text-sm ${palette.headerPill}`}>
                       {tables.length} tables total
