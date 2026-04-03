@@ -63,94 +63,15 @@ type BackendOrder = {
   settled?: boolean;
 };
 
+type BackendTable = {
+  id?: string;
+  tableId?: string;
+  label?: string;
+  status?: string;
+  assignedOrderId?: string | null;
+};
+
 const sections: SectionType[] = ["AC", "Non-AC", "Rooftop"];
-const initialOrders: BillOrder[] = [
-  {
-    id: "#21635",
-    customer: "Mohsin",
-    type: "Dine-In",
-    amount: 378,
-    itemCount: 3,
-    elapsed: "08m",
-    mobile: "9740720936",
-    section: "AC",
-    tableId: "T2",
-    payment: "UPI",
-    items: [
-      { id: "m1", name: "French Fries", qty: 1, price: 180 },
-      { id: "m4", name: "Masala Soda", qty: 2, price: 90 },
-    ],
-    settled: false,
-  },
-  {
-    id: "#21636",
-    customer: "Aarav",
-    type: "Takeaway",
-    amount: 350,
-    itemCount: 1,
-    elapsed: "04m",
-    mobile: "9876543210",
-    section: "Non-AC",
-    tableId: null,
-    payment: "Cash",
-    items: [{ id: "m5", name: "Margherita", qty: 1, price: 350 }],
-    settled: false,
-  },
-  {
-    id: "#21637",
-    customer: "Sana",
-    type: "Delivery",
-    amount: 410,
-    itemCount: 2,
-    elapsed: "12m",
-    mobile: "9966554433",
-    section: "Rooftop",
-    tableId: null,
-    payment: "Card",
-    items: [
-      { id: "m2", name: "Paneer Tikka", qty: 1, price: 320 },
-      { id: "m4", name: "Masala Soda", qty: 1, price: 90 },
-    ],
-    settled: false,
-  },
-  {
-    id: "#21638",
-    customer: "Riya",
-    type: "Dine-In",
-    amount: 400,
-    itemCount: 2,
-    elapsed: "06m",
-    mobile: "9822334455",
-    section: "AC",
-    tableId: "T8",
-    payment: "UPI",
-    items: [
-      { id: "m6", name: "Choco Lava", qty: 1, price: 210 },
-      { id: "m4", name: "Masala Soda", qty: 1, price: 90 },
-    ],
-    settled: false,
-  },
-];
-
-const quickMenu: MenuItem[] = [
-  { id: "m1", name: "French Fries", price: 180, tag: "Fast" },
-  { id: "m2", name: "Paneer Tikka", price: 320, tag: "Starter" },
-  { id: "m3", name: "Veg Burger", price: 220, tag: "Combo" },
-  { id: "m4", name: "Masala Soda", price: 90, tag: "Drink" },
-  { id: "m5", name: "Margherita", price: 350, tag: "Pizza" },
-  { id: "m6", name: "Choco Lava", price: 210, tag: "Dessert" },
-];
-
-const initialTables: TableNode[] = [
-  { id: "T1", label: "T1", status: "Occupied" },
-  { id: "T2", label: "T2", status: "Available" },
-  { id: "T3", label: "T3", status: "Available" },
-  { id: "T4", label: "T4", status: "Occupied" },
-  { id: "T5", label: "T5", status: "Available" },
-  { id: "T6", label: "T6", status: "Occupied" },
-  { id: "T7", label: "T7", status: "Available" },
-  { id: "T8", label: "T8", status: "Available" },
-];
 
 const orderTypeMeta: Record<OrderType, { icon: React.ComponentType<{ className?: string }> }> = {
   Delivery: { icon: Truck },
@@ -226,6 +147,18 @@ function mapOrderFromBackend(order: BackendOrder, index: number): BillOrder {
   };
 }
 
+function mapTableFromBackend(table: BackendTable, index: number): TableNode {
+  const resolvedId = String(table.id ?? table.tableId ?? `T${index + 1}`).toUpperCase();
+  const resolvedLabel = (table.label?.trim() || resolvedId).toUpperCase();
+  const resolvedStatus: TableStatus = table.status === "Occupied" ? "Occupied" : "Available";
+
+  return {
+    id: resolvedId,
+    label: resolvedLabel,
+    status: resolvedStatus,
+  };
+}
+
 async function fetchWithFallback<T>(paths: string[]): Promise<T | null> {
   for (const path of paths) {
     try {
@@ -252,6 +185,19 @@ async function postWithFallback<TBody, TResponse>(paths: string[], body: TBody):
   return null;
 }
 
+async function patchWithFallback<TBody, TResponse>(paths: string[], body: TBody): Promise<TResponse | null> {
+  for (const path of paths) {
+    try {
+      const response = await axios.patch<TResponse>(`${POS_API_BASE_URL}${path}`, body, { timeout: 6000 });
+      return response.data;
+    } catch {
+      // Try next fallback endpoint.
+    }
+  }
+
+  return null;
+}
+
 function money(value: number) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -264,9 +210,10 @@ export default function Home() {
   const pathname = usePathname();
   const [theme, setTheme] = useState<"dark" | "light">("light");
   const isThemeReadyRef = useRef(false);
-  const [orders, setOrders] = useState<BillOrder[]>(initialOrders);
-  const [menuItems, setMenuItems] = useState<MenuItem[]>(quickMenu);
-  const [tables, setTables] = useState<TableNode[]>(initialTables);
+  const [orders, setOrders] = useState<BillOrder[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [allMenuItems, setAllMenuItems] = useState<MenuItem[]>([]);
+  const [tables, setTables] = useState<TableNode[]>([]);
   const [menuSearch, setMenuSearch] = useState("");
   const [newOrderCustomer, setNewOrderCustomer] = useState("");
   const [newOrderMobile, setNewOrderMobile] = useState("");
@@ -275,22 +222,24 @@ export default function Home() {
   const [newTableLabel, setNewTableLabel] = useState("");
   const [newTableStatus, setNewTableStatus] = useState<TableStatus>("Available");
   const [candidateTableId, setCandidateTableId] = useState<string | null>(null);
-  const [selectedOrderId, setSelectedOrderId] = useState<string>(initialOrders[0].id);
+  const [selectedOrderId, setSelectedOrderId] = useState<string>("");
   const [showTableModal, setShowTableModal] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
 
   const openOrders = useMemo(() => orders.filter((order) => !order.settled), [orders]);
   const filteredMenuItems = useMemo(() => {
     const query = menuSearch.trim().toLowerCase();
+    const sourceItems = query ? (allMenuItems.length > 0 ? allMenuItems : menuItems) : menuItems;
+
     if (!query) {
-      return menuItems;
+      return sourceItems;
     }
 
-    return menuItems.filter((item) => {
+    return sourceItems.filter((item) => {
       const searchable = `${item.name} ${item.tag}`.toLowerCase();
       return searchable.includes(query);
     });
-  }, [menuItems, menuSearch]);
+  }, [allMenuItems, menuItems, menuSearch]);
 
   const tableStats = useMemo(() => {
     const occupied = tables.filter((table) => table.status === "Occupied").length;
@@ -313,9 +262,11 @@ export default function Home() {
     let isMounted = true;
 
     async function loadBackendData() {
-      const [ordersResponse, menuResponse] = await Promise.all([
+      const [ordersResponse, popularMenuResponse, fullMenuResponse, tablesResponse] = await Promise.all([
         fetchWithFallback<BackendOrder[] | { data: BackendOrder[] }>(["/api/pos/orders/active", "/api/orders/active", "/orders/active"]),
+        fetchWithFallback<BackendMenuItem[] | { data: BackendMenuItem[] }>(["/api/pos/menu/popular?limit=6", "/api/menu/popular?limit=6", "/menu/popular?limit=6"]),
         fetchWithFallback<BackendMenuItem[] | { data: BackendMenuItem[] }>(["/api/pos/menu", "/api/menu", "/menu"]),
+        fetchWithFallback<BackendTable[] | { data: BackendTable[] }>(["/api/pos/tables", "/api/tables", "/tables"]),
       ]);
 
       if (!isMounted) {
@@ -327,10 +278,20 @@ export default function Home() {
         : Array.isArray(ordersResponse?.data)
           ? ordersResponse.data
           : [];
-      const parsedMenu = Array.isArray(menuResponse)
-        ? menuResponse
-        : Array.isArray(menuResponse?.data)
-          ? menuResponse.data
+      const parsedPopularMenu = Array.isArray(popularMenuResponse)
+        ? popularMenuResponse
+        : Array.isArray(popularMenuResponse?.data)
+          ? popularMenuResponse.data
+          : [];
+      const parsedFullMenu = Array.isArray(fullMenuResponse)
+        ? fullMenuResponse
+        : Array.isArray(fullMenuResponse?.data)
+          ? fullMenuResponse.data
+          : [];
+      const parsedTables = Array.isArray(tablesResponse)
+        ? tablesResponse
+        : Array.isArray(tablesResponse?.data)
+          ? tablesResponse.data
           : [];
 
       if (parsedOrders.length > 0) {
@@ -339,8 +300,16 @@ export default function Home() {
         setSelectedOrderId(nextOrders[0]?.id ?? "");
       }
 
-      if (parsedMenu.length > 0) {
-        setMenuItems(parsedMenu.map(mapMenuFromBackend));
+      if (parsedPopularMenu.length > 0) {
+        setMenuItems(parsedPopularMenu.map(mapMenuFromBackend).slice(0, 6));
+      }
+
+      if (parsedFullMenu.length > 0) {
+        setAllMenuItems(parsedFullMenu.map(mapMenuFromBackend));
+      }
+
+      if (parsedTables.length > 0) {
+        setTables(parsedTables.map(mapTableFromBackend));
       }
     }
 
@@ -413,7 +382,7 @@ export default function Home() {
     );
   }
 
-  function toggleTableStatus(tableId: string) {
+  async function toggleTableStatus(tableId: string) {
     const target = tables.find((table) => table.id === tableId);
     if (!target) {
       return;
@@ -421,10 +390,17 @@ export default function Home() {
 
     const nextStatus: TableStatus = target.status === "Occupied" ? "Available" : "Occupied";
 
+    const response = await patchWithFallback<{ status: TableStatus }, { table?: BackendTable }>(
+      [`/api/pos/tables/${tableId}/status`, `/api/tables/${tableId}/status`, `/tables/${tableId}/status`],
+      { status: nextStatus },
+    );
+
+    const persistedTable = response?.table ? mapTableFromBackend(response.table, 0) : null;
+
     setTables((prev) =>
       prev.map((table) =>
         table.id === tableId
-          ? { ...table, status: nextStatus }
+          ? persistedTable ?? { ...table, status: nextStatus }
           : table,
       ),
     );
@@ -440,7 +416,7 @@ export default function Home() {
     }
   }
 
-  function addNewTable() {
+  async function addNewTable() {
     const trimmedLabel = newTableLabel.trim();
     if (!trimmedLabel) {
       setBanner("Enter a table number or name first.");
@@ -457,9 +433,16 @@ export default function Home() {
       return;
     }
 
+    const response = await postWithFallback<{ label: string; status: TableStatus }, { table?: BackendTable }>(
+      ["/api/pos/tables", "/api/tables", "/tables"],
+      { label: normalizedLabel, status: newTableStatus },
+    );
+
+    const persistedTable = response?.table ? mapTableFromBackend(response.table, tables.length) : null;
+
     setTables((prev) => [
       ...prev,
-      {
+      persistedTable ?? {
         id: normalizedLabel,
         label: normalizedLabel,
         status: newTableStatus,
@@ -491,7 +474,7 @@ export default function Home() {
     setBanner(`Selected table ${tableId}. Confirm to assign.`);
   }
 
-  function confirmSelectedTable() {
+  async function confirmSelectedTable() {
     if (!currentOrder) {
       return;
     }
@@ -515,16 +498,28 @@ export default function Home() {
 
     const previousTableId = currentOrder.tableId;
 
+    const assignResponse = await patchWithFallback<{ orderId: string }, { table?: BackendTable }>(
+      [`/api/pos/tables/${tableId}/assign`, `/api/tables/${tableId}/assign`, `/tables/${tableId}/assign`],
+      { orderId: currentOrder.id },
+    );
+
+    if (!assignResponse) {
+      setBanner("Could not assign table on backend.");
+      return;
+    }
+
     setOrders((prev) =>
       prev.map((order) =>
         order.id === currentOrder.id ? { ...order, tableId } : order,
       ),
     );
 
+    const persistedAssignedTable = assignResponse.table ? mapTableFromBackend(assignResponse.table, 0) : null;
+
     setTables((prev) =>
       prev.map((table) => {
         if (table.id === tableId) {
-          return { ...table, status: "Occupied" };
+          return persistedAssignedTable ?? { ...table, status: "Occupied" };
         }
 
         if (
@@ -651,12 +646,17 @@ export default function Home() {
     }));
   }
 
-  function handleSettleAndSave() {
+  async function handleSettleAndSave() {
     if (!currentOrder) {
       return;
     }
 
     const tableId = currentOrder.tableId;
+
+    await patchWithFallback<{ payment: PaymentType }, unknown>(
+      [`/api/pos/orders/${currentOrder.id}/settle`, `/api/orders/${currentOrder.id}/settle`, `/orders/${currentOrder.id}/settle`],
+      { payment },
+    );
 
     setOrders((prev) =>
       prev.map((order) =>
@@ -667,6 +667,11 @@ export default function Home() {
     );
 
     if (tableId) {
+      await patchWithFallback<{ orderId: string }, unknown>(
+        [`/api/pos/tables/${tableId}/release`, `/api/tables/${tableId}/release`, `/tables/${tableId}/release`],
+        { orderId: currentOrder.id },
+      );
+
       setTables((prev) =>
         prev.map((table) =>
           table.id === tableId ? { ...table, status: "Available" } : table,

@@ -50,6 +50,21 @@ export function BillEditorPanel({
   onSettleAndSave,
   money,
 }: BillEditorPanelProps) {
+  if (!hasCurrentOrder) {
+    return (
+      <section className={`flex flex-col rounded-[28px] p-3.5 backdrop-blur-lg ${palette.panel}`}>
+        <div className={`flex min-h-[420px] items-center justify-center rounded-[24px] border ${palette.panelSoft}`}>
+          <div className="max-w-sm space-y-2 text-center">
+            <p className={`text-lg font-semibold ${palette.textStrong}`}>No active bill selected</p>
+            <p className={`text-sm ${palette.textMuted}`}>
+              Create a new order or select an existing active order from the left panel to start billing.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className={`flex flex-col rounded-[28px] p-3.5 backdrop-blur-lg ${palette.panel}`}>
       <div className="grid gap-3 sm:grid-cols-2">
