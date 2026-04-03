@@ -2,8 +2,9 @@
 
 import { Listbox } from "@headlessui/react";
 import { motion } from "framer-motion";
-import { ChevronDown, Plus } from "lucide-react";
+import { ChevronDown, Plus, AlertCircle, CheckCircle2 } from "lucide-react";
 import type { BillOrder, OrderType, Palette } from "./types";
+import { getOrderColorStatus, getOrderColorClasses } from "./orderStatusUtils";
 
 type ActiveOrdersPanelProps = {
   isDark: boolean;
@@ -85,11 +86,7 @@ export function ActiveOrdersPanel({
             type="button"
             onClick={onCreateOrder}
             disabled={isSavingNewOrder}
-            className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
-              isDark
-                ? "bg-[#f06a5a]/20 text-[#ffd8d3] hover:bg-[#f06a5a]/28 disabled:opacity-60"
-                : "bg-[#cc4b3e]/12 text-[#7f1d16] hover:bg-[#cc4b3e]/18 disabled:opacity-60"
-            }`}
+            className="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-all duration-200 shadow-sm hover:shadow-md bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-60"
           >
             <Plus className="h-4 w-4" />
             {isSavingNewOrder ? "Saving..." : "Save New Order"}
@@ -98,25 +95,62 @@ export function ActiveOrdersPanel({
       </div>
 
       <div className="space-y-2.5">
-        {openOrders.map((order) => (
-          <motion.article
-            key={order.id}
-            whileHover={{ y: -2 }}
-            className={`cursor-pointer rounded-2xl border p-3 shadow-[0_12px_30px_rgba(2,6,23,0.18)] ${order.id === currentOrderId ? palette.sidebarActive : palette.panelSoft}`}
-            onClick={() => onSelectOrder(order.id)}
-          >
-            <div className="flex items-center justify-between">
-              <p className={`text-sm font-semibold ${palette.textStrong}`}>{order.id}</p>
-              <span className={`rounded-lg px-2 py-0.5 text-xs ${palette.headerPill}`}>{order.elapsed}</span>
-            </div>
-            <p className={`mt-2 text-sm ${palette.textMuted}`}>{order.customer}</p>
-            <div className="mt-3 flex items-center justify-between text-sm">
-              <span className={palette.highlight}>{order.type}</span>
-              <span className={`font-semibold ${palette.textStrong}`}>{money(order.amount)}</span>
-            </div>
-            <p className="mt-1 text-xs text-slate-400">{order.itemCount} items</p>
-          </motion.article>
-        ))}
+        {openOrders.map((order) => {
+          const colorStatus = getOrderColorStatus({
+            paymentStatus: order.paymentStatus || "pending",
+            preparationStatus: order.preparationStatus || "pending",
+            unpaidAmountCleared: order.unpaidAmountCleared,
+            settled: order.settled,
+          });
+
+          return (
+            <motion.article
+              key={order.id}
+              whileHover={{ y: -2 }}
+              className={`cursor-pointer border-2 p-3 shadow-[0_12px_30px_rgba(2,6,23,0.18)] transition ${
+                order.id === currentOrderId
+                  ? palette.sidebarActive
+                  : colorStatus === "yellow"
+                  ? isDark
+                    ? "border-yellow-500 bg-yellow-900/30"
+                    : "border-yellow-500 bg-yellow-100"
+                  : colorStatus === "preparing"
+                  ? isDark
+                    ? "border-blue-500 bg-blue-900/30"
+                    : "border-blue-500 bg-blue-100"
+                  : isDark
+                    ? "rounded-2xl border-slate-600 bg-slate-800"
+                    : "rounded-2xl border-slate-300 bg-white"
+              } rounded-2xl`}
+              onClick={() => onSelectOrder(order.id)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <p className={`text-sm font-semibold ${palette.textStrong}`}>{order.id}</p>
+                  {colorStatus === "yellow" && (
+                    <AlertCircle className={`h-4 w-4 ${isDark ? "text-yellow-300" : "text-yellow-700"}`} />
+                  )}
+                  {colorStatus === "preparing" && (
+                    <CheckCircle2 className={`h-4 w-4 ${isDark ? "text-blue-300" : "text-blue-700"}`} />
+                  )}
+                </div>
+                <span className={`rounded-lg px-2 py-0.5 text-xs ${palette.headerPill}`}>{order.elapsed}</span>
+              </div>
+              <p className={`mt-2 text-sm ${palette.textMuted}`}>{order.customer}</p>
+              <div className="mt-3 flex items-center justify-between text-sm">
+                <span className={palette.highlight}>{order.type}</span>
+                <span className={`font-semibold ${palette.textStrong}`}>{money(order.amount)}</span>
+              </div>
+              <p className="mt-1 text-xs text-slate-400">{order.itemCount} items</p>
+              {colorStatus === "yellow" && (
+                <p className={`mt-2 text-xs font-semibold ${isDark ? "text-yellow-300" : "text-yellow-800"}`}>Awaiting Payment</p>
+              )}
+              {colorStatus === "preparing" && (
+                <p className={`mt-2 text-xs font-semibold ${isDark ? "text-blue-300" : "text-blue-800"}`}>In Preparation</p>
+              )}
+            </motion.article>
+          );
+        })}
         {!openOrders.length ? (
           <div className={`rounded-2xl border p-4 text-sm ${palette.panelSoft}`}>
             All orders are settled. Start a new ticket from the POS flow.

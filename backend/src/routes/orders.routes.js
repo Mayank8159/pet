@@ -24,6 +24,9 @@ function normalizeOrderPayload(payload) {
     section: payload.section || "AC",
     tableId: payload.tableId || null,
     payment: payload.payment || payload.paymentType || "UPI",
+    paymentStatus: payload.paymentStatus || "pending",
+    preparationStatus: payload.preparationStatus || "pending",
+    unpaidAmountCleared: Boolean(payload.unpaidAmountCleared),
     settled: Boolean(payload.settled),
     items,
   };
@@ -41,6 +44,9 @@ function toResponse(order) {
     section: order.section,
     tableId: order.tableId,
     payment: order.payment,
+    paymentStatus: order.paymentStatus,
+    preparationStatus: order.preparationStatus,
+    unpaidAmountCleared: order.unpaidAmountCleared,
     items: order.items.map((item) => ({
       id: item.menuItemId || `${order.orderCode}-${item.name}`,
       name: item.name,
@@ -118,6 +124,9 @@ router.patch("/:id", async (req, res, next) => {
     existing.section = payload.section;
     existing.tableId = payload.tableId;
     existing.payment = payload.payment;
+    existing.paymentStatus = payload.paymentStatus;
+    existing.preparationStatus = payload.preparationStatus;
+    existing.unpaidAmountCleared = payload.unpaidAmountCleared;
     existing.items = payload.items;
     existing.settled = payload.settled;
 
@@ -143,6 +152,102 @@ router.patch("/:id/settle", async (req, res, next) => {
     await existing.save();
 
     res.json(toResponse(existing.toObject()));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get orders for live view (orders currently being prepared - not yet completed)
+router.get("/live", async (_req, res, next) => {
+  try {
+    const rows = await Order.find({
+      settled: false,
+      items: { $ne: [] },
+      preparationStatus: "pending"  // Still in preparation stage
+    })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+    res.json(rows.map(toResponse));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get orders for history (orders that have been completed/prepared)
+router.get("/history", async (_req, res, next) => {
+  try {
+    const rows = await Order.find({
+      $or: [
+        { preparationStatus: "prepared" },  // Completed by kitchen staff
+        { settled: true },  // Fully settled
+      ],
+    })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+    res.json(rows.map(toResponse));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Toggle preparation status
+router.patch("/:id/prepared", async (req, res, next) => {
+  try {
+    const existing = await Order.findOne({ orderCode: req.params.id });
+    if (!existing) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    existing.preparationStatus = existing.preparationStatus === "prepared" ? "pending" : "prepared";
+    await existing.save();
+
+    res.json(toResponse(existing.toObject()));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Toggle payment status
+router.patch("/:id/paid", async (req, res, next) => {
+  try {
+    const existing = await Order.findOne({ orderCode: req.params.id });
+    if (!existing) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    existing.paymentStatus = existing.paymentStatus === "paid" ? "pending" : "paid";
+    await existing.save();
+
+    res.json(toResponse(existing.toObject()));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Mark unpaid amount as cleared (checkbox in history)
+router.patch("/:id/clear-unpaid", async (req, res, next) => {
+  try {
+    const existing = await Order.findOne({ orderCode: req.params.id });
+    if (!existing) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    existing.unpaidAmountCleared = !existing.unpaidAmountCleared;
+    await existing.save();
+
+    res.json(toResponse(existing.toObject()));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Clear all orders (development utility)
+router.delete("/", async (req, res, next) => {
+  try {
+    const result = await Order.deleteMany({});
+    res.json({ message: `Deleted ${result.deletedCount} orders`, deletedCount: result.deletedCount });
   } catch (error) {
     next(error);
   }

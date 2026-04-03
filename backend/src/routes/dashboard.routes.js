@@ -15,6 +15,13 @@ router.get("/", async (_req, res, next) => {
 
     const settledOrders = orders.filter((order) => order.settled);
     const activeOrders = orders.filter((order) => !order.settled);
+    
+    // Status breakdown for active orders
+    const unpaidOrders = activeOrders.filter((order) => order.paymentStatus === "pending");
+    const paidOrders = activeOrders.filter((order) => order.paymentStatus === "paid");
+    const preparingOrders = activeOrders.filter((order) => order.preparationStatus === "pending");
+    const preparedOrders = activeOrders.filter((order) => order.preparationStatus === "prepared");
+    
     const revenue = settledOrders.reduce((acc, order) => acc + (order.amount || 0), 0);
     const averageTicket = settledOrders.length > 0 ? Math.round(revenue / settledOrders.length) : 0;
     const occupiedTables = tables.filter((table) => table.status === "Occupied").length;
@@ -27,6 +34,10 @@ router.get("/", async (_req, res, next) => {
         total: orders.length,
         revenue,
         averageTicket,
+        unpaid: unpaidOrders.length,
+        paid: paidOrders.length,
+        preparing: preparingOrders.length,
+        prepared: preparedOrders.length,
       },
       tables: {
         total: tables.length,

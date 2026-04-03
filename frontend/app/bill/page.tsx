@@ -59,6 +59,9 @@ type BackendOrder = {
   tableId?: string;
   payment?: string;
   paymentType?: string;
+  paymentStatus?: string;
+  preparationStatus?: string;
+  unpaidAmountCleared?: boolean;
   items?: BackendOrderItem[];
   settled?: boolean;
 };
@@ -144,6 +147,9 @@ function mapOrderFromBackend(order: BackendOrder, index: number): BillOrder {
     payment: normalizePayment(order.payment ?? order.paymentType),
     items,
     settled: Boolean(order.settled),
+    paymentStatus: order.paymentStatus === "paid" ? "paid" : "pending",
+    preparationStatus: order.preparationStatus === "prepared" ? "prepared" : "pending",
+    unpaidAmountCleared: Boolean(order.unpaidAmountCleared),
   };
 }
 
@@ -634,6 +640,35 @@ export default function Home() {
         items: [...order.items, { id: menuItem.id, name: menuItem.name, qty: 1, price: menuItem.price }],
       };
     });
+
+    // Persist items to backend
+    persistOrderToBackend();
+  }
+
+  async function persistOrderToBackend() {
+    if (!currentOrder) return;
+
+    try {
+      const payload = {
+        customer: currentOrder.customer,
+        mobile: currentOrder.mobile,
+        type: currentOrder.type,
+        section: currentOrder.section,
+        tableId: currentOrder.tableId,
+        payment: currentOrder.payment,
+        paymentStatus: currentOrder.paymentStatus,
+        preparationStatus: currentOrder.preparationStatus,
+        unpaidAmountCleared: currentOrder.unpaidAmountCleared,
+        items: currentOrder.items,
+      };
+
+      await patchWithFallback(
+         [`/api/pos/orders/${encodeURIComponent(currentOrder.id)}`, `/api/orders/${encodeURIComponent(currentOrder.id)}`, `/orders/${encodeURIComponent(currentOrder.id)}`],
+        payload,
+      );
+    } catch (error) {
+      console.error("Failed to persist order to backend:", error);
+    }
   }
 
   function updateQty(id: string, delta: number) {
@@ -644,6 +679,9 @@ export default function Home() {
         )
         .filter((entry) => entry.qty > 0),
     }));
+
+    // Persist quantity changes to backend
+    persistOrderToBackend();
   }
 
   async function handleSettleAndSave() {
@@ -654,7 +692,7 @@ export default function Home() {
     const tableId = currentOrder.tableId;
 
     await patchWithFallback<{ payment: PaymentType }, unknown>(
-      [`/api/pos/orders/${currentOrder.id}/settle`, `/api/orders/${currentOrder.id}/settle`, `/orders/${currentOrder.id}/settle`],
+      [`/api/pos/orders/${encodeURIComponent(currentOrder.id)}/settle`, `/api/orders/${encodeURIComponent(currentOrder.id)}/settle`, `/orders/${encodeURIComponent(currentOrder.id)}/settle`],
       { payment },
     );
 
@@ -765,6 +803,9 @@ export default function Home() {
         payment: "UPI",
         items: [],
         settled: false,
+        paymentStatus: "pending",
+        preparationStatus: "pending",
+        unpaidAmountCleared: false,
       };
       setBanner(`Backend unavailable. Created ${fallbackId} locally.`);
     }

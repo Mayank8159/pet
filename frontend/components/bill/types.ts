@@ -32,6 +32,9 @@ export type BillOrder = ActiveOrder & {
   payment: PaymentType;
   items: OrderItem[];
   settled: boolean;
+  paymentStatus: "pending" | "paid";
+  preparationStatus: "pending" | "prepared";
+  unpaidAmountCleared: boolean;
 };
 
 export type MenuItem = {

@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, BarChart3, IndianRupee, MoonStar, ReceiptText, SunMedium } from "lucide-react";
+import { ArrowLeft, MoonStar, SunMedium } from "lucide-react";
 import { BillSidebar } from "@/components/bill/BillSidebar";
-import { useDashboardSummary } from "@/components/bill/useDashboardSummary";
+import { OrderHistoryPanel } from "@/components/bill/OrderHistoryPanel";
 
 export default function ReportsPage() {
   const [theme, setTheme] = useState<"dark" | "light">("light");
   const isThemeReadyRef = useRef(false);
-  const { summary } = useDashboardSummary();
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem("pos-theme");
@@ -40,8 +39,8 @@ export default function ReportsPage() {
     >
       <div className="flex min-h-screen">
         <BillSidebar isDark={isDark} />
-        <main className="flex-1 p-6">
-          <div className="mx-auto max-w-6xl space-y-6">
+        <main className="flex-1 p-6 overflow-auto">
+          <div className="mx-auto max-w-7xl space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Link
                 href="/bill"
@@ -65,45 +64,11 @@ export default function ReportsPage() {
             </div>
 
             <header>
-              <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#ffb09a]" : "text-[#cc4b3e]"}`}>Reports</p>
-              <h1 className="mt-2 text-3xl font-semibold">Sales & Performance Reports</h1>
+              <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#ffb09a]" : "text-[#cc4b3e]"}`}>Order History</p>
+              <h1 className="mt-2 text-3xl font-semibold">Completed & Unpaid Orders</h1>
             </header>
 
-            <section className="grid gap-4 md:grid-cols-3">
-              <article
-                className={`rounded-2xl border p-4 ${
-                  isDark
-                    ? "border-white/10 bg-white/5 shadow-[0_12px_32px_rgba(0,0,0,0.35)]"
-                    : "border-[#ffd8c6] bg-white/90 shadow-[0_10px_30px_rgba(204,75,62,0.08)]"
-                }`}
-              >
-                <IndianRupee className="h-5 w-5 text-[#cc4b3e]" />
-                <p className={`mt-3 text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>Revenue</p>
-                <p className="mt-1 text-2xl font-semibold">Rs {summary.orders.revenue.toLocaleString("en-IN")}</p>
-              </article>
-              <article
-                className={`rounded-2xl border p-4 ${
-                  isDark
-                    ? "border-white/10 bg-white/5 shadow-[0_12px_32px_rgba(0,0,0,0.35)]"
-                    : "border-[#ffd8c6] bg-white/90 shadow-[0_10px_30px_rgba(47,158,136,0.08)]"
-                }`}
-              >
-                <ReceiptText className="h-5 w-5 text-[#2f9e88]" />
-                <p className={`mt-3 text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>Settled Bills</p>
-                <p className="mt-1 text-2xl font-semibold">{summary.orders.settled}</p>
-              </article>
-              <article
-                className={`rounded-2xl border p-4 ${
-                  isDark
-                    ? "border-white/10 bg-white/5 shadow-[0_12px_32px_rgba(0,0,0,0.35)]"
-                    : "border-[#ffd8c6] bg-white/90 shadow-[0_10px_30px_rgba(245,158,11,0.08)]"
-                }`}
-              >
-                <BarChart3 className="h-5 w-5 text-[#d97706]" />
-                <p className={`mt-3 text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>Avg Ticket</p>
-                <p className="mt-1 text-2xl font-semibold">Rs {summary.orders.averageTicket.toLocaleString("en-IN")}</p>
-              </article>
-            </section>
+            <OrderHistoryPanel />
           </div>
         </main>
       </div>
