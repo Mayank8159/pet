@@ -1,8 +1,10 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { Menu, X } from 'lucide-react';
+import { clearAuthSession, getAuthUser, type AuthUser } from '@/lib/auth';
 
 interface NavbarProps {
   navItems?: string[];
@@ -10,6 +12,22 @@ interface NavbarProps {
 
 export function Navbar({ navItems = ['Products', 'About Us', 'Careers'] }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    function syncAuth() {
+      setUser(getAuthUser());
+    }
+
+    syncAuth();
+    window.addEventListener('tabio-auth-changed', syncAuth);
+    return () => window.removeEventListener('tabio-auth-changed', syncAuth);
+  }, []);
+
+  function handleLogout() {
+    clearAuthSession();
+    setMobileMenuOpen(false);
+  }
 
   return (
     <nav className="sticky top-0 z-50 bg-gradient-to-r from-[#001a31] via-[#012a4a] to-[#001f39] border-b border-[#0b3b67] shadow-[0_10px_30px_rgba(0,12,28,0.35)]">
@@ -44,9 +62,27 @@ export function Navbar({ navItems = ['Products', 'About Us', 'Careers'] }: Navba
 
           {/* Desktop CTA Button */}
           <div className="hidden md:flex flex-shrink-0 ml-auto">
-            <button className="px-7 py-2.5 bg-[#cf1e38] text-white font-semibold text-sm rounded-lg hover:bg-[#ff6b9d] active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg">
-              Get Started
-            </button>
+            {user ? (
+              <div className="flex items-center gap-3">
+                <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white font-semibold border border-white/20">
+                  {user.name?.[0]?.toUpperCase() || 'U'}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="px-5 py-2.5 bg-[#cf1e38] text-white font-semibold text-sm rounded-lg hover:bg-[#ff6b9d] active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="px-7 py-2.5 bg-[#cf1e38] text-white font-semibold text-sm rounded-lg hover:bg-[#ff6b9d] active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg"
+              >
+                Get Started
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -76,9 +112,30 @@ export function Navbar({ navItems = ['Products', 'About Us', 'Careers'] }: Navba
                   {item}
                 </a>
               ))}
-              <button className="w-full px-4 py-2.5 mt-3 bg-[#cf1e38] text-white font-semibold text-sm rounded-lg hover:bg-[#ff6b9d] active:scale-95 transition-all duration-200">
-                Get Started
-              </button>
+              {user ? (
+                <>
+                  <div className="flex items-center gap-3 rounded-lg border border-white/15 bg-[#0b3b67] px-3 py-2 text-white">
+                    <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white font-semibold border border-white/20">
+                      {user.name?.[0]?.toUpperCase() || 'U'}
+                    </div>
+                    <span className="text-sm font-medium">{user.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full px-4 py-2.5 mt-3 bg-[#cf1e38] text-white font-semibold text-sm rounded-lg hover:bg-[#ff6b9d] active:scale-95 transition-all duration-200"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <Link
+                  href="/login"
+                  className="block w-full px-4 py-2.5 mt-3 bg-[#cf1e38] text-white font-semibold text-sm rounded-lg hover:bg-[#ff6b9d] active:scale-95 transition-all duration-200 text-center"
+                >
+                  Get Started
+                </Link>
+              )}
             </div>
           </div>
         )}

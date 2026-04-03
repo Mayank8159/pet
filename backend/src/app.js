@@ -6,12 +6,13 @@ const menuRoutes = require("./routes/menu.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const orderRoutes = require("./routes/orders.routes");
 const tableRoutes = require("./routes/tables.routes");
+const authRoutes = require("./routes/auth.routes");
 
 const app = express();
 
 const corsOrigins = process.env.CLIENT_ORIGIN
   ? process.env.CLIENT_ORIGIN.split(",").map((origin) => origin.trim())
-  : ["http://localhost:3000"];
+  : ["http://localhost:3000", "http://localhost:3001", "https://pet-mu-eight.vercel.app"];
 
 app.use(cors({ origin: corsOrigins }));
 app.use(express.json({ limit: "1mb" }));
@@ -36,6 +37,10 @@ app.use("/orders", orderRoutes);
 app.use("/api/pos/tables", tableRoutes);
 app.use("/api/tables", tableRoutes);
 app.use("/tables", tableRoutes);
+
+app.use("/api/pos/auth", authRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/auth", authRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
