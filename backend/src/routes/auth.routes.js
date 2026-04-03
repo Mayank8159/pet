@@ -78,11 +78,21 @@ router.post("/signup", async (req, res, next) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await User.create({ name, businessName, email, passwordHash });
+    const user = await User.create({
+      name,
+      businessName,
+      username: email,
+      email,
+      passwordHash,
+    });
 
     const token = signToken(user);
     return res.status(201).json({ token, user: toUserResponse(user) });
   } catch (error) {
+    if (error?.code === 11000) {
+      const duplicateField = Object.keys(error?.keyPattern || {})[0] || "field";
+      return res.status(409).json({ message: `${duplicateField} already registered` });
+    }
     next(error);
   }
 });

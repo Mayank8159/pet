@@ -48,6 +48,13 @@ export function Navbar({ navItems = ['Products', 'About Us', 'Careers'] }: Navba
 
           {/* Desktop Navigation - Center */}
           <div className="hidden md:flex items-center gap-10 flex-1 justify-center">
+            <Link
+              href="/bill"
+              className="text-sm font-semibold text-white relative group transition-colors duration-200 hover:text-[#ff6b9d]"
+            >
+              Bill
+              <span className="absolute -bottom-1 left-0 h-0.5 w-0 bg-[#ff6b9d] transition-all duration-300 group-hover:w-full" />
+            </Link>
             {navItems.map((item) => (
               <a
                 key={item}
@@ -103,6 +110,13 @@ export function Navbar({ navItems = ['Products', 'About Us', 'Careers'] }: Navba
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-[#0b3b67] bg-gradient-to-b from-[#02284a] to-[#001a31] py-4 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="space-y-2 px-2">
+              <Link
+                href="/bill"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-4 py-2.5 text-sm font-semibold text-white rounded-lg hover:bg-[#0b3b67] hover:text-[#ff6b9d] transition-all duration-200"
+              >
+                Bill
+              </Link>
               {navItems.map((item) => (
                 <a
                   key={item}

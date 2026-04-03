@@ -18,7 +18,14 @@ const POS_API_BASE_URL = process.env.NEXT_PUBLIC_POS_API_BASE_URL ?? "http://loc
 type BackendOrder = {
   id?: string;
   customer?: string;
+  type?: string;
   tableId?: string | null;
+  deliveryAddress?: {
+    flatNo?: string;
+    roomNo?: string;
+    landmark?: string;
+    autoLocation?: string;
+  } | null;
   paymentStatus?: string;
   preparationStatus?: string;
   unpaidAmountCleared?: boolean;
@@ -32,13 +39,21 @@ function mapOrderFromBackend(order: BackendOrder, index: number): BillOrder & { 
   return {
     id: String(order.id ?? `#${index + 1}`),
     customer: order.customer || "Guest",
-    type: "Dine-In",
+    type: order.type === "Delivery" || order.type === "Takeaway" ? order.type : "Dine-In",
     amount: order.amount || 0,
     itemCount: order.itemCount || 0,
     elapsed: "Now",
     mobile: "",
     section: "AC",
     tableId: order.tableId ?? null,
+    deliveryAddress: order.deliveryAddress
+      ? {
+          flatNo: String(order.deliveryAddress.flatNo ?? ""),
+          roomNo: String(order.deliveryAddress.roomNo ?? ""),
+          landmark: String(order.deliveryAddress.landmark ?? ""),
+          autoLocation: String(order.deliveryAddress.autoLocation ?? ""),
+        }
+      : null,
     payment: "UPI",
     items: (order.items || []).map((item, i) => ({
       id: String(i),
@@ -138,6 +153,11 @@ export function OrderHistoryPanel() {
                   <div className="flex-1">
                     <h3 className="font-bold text-xl text-slate-900 dark:text-white">{order.id}</h3>
                     <p className="text-sm font-medium text-slate-600 dark:text-slate-300 mt-1">{order.customer}</p>
+                    {order.type === "Delivery" && order.deliveryAddress ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        {`${order.deliveryAddress.flatNo || ""}${order.deliveryAddress.roomNo ? `, ${order.deliveryAddress.roomNo}` : ""}${order.deliveryAddress.landmark ? `, ${order.deliveryAddress.landmark}` : ""}`.trim() || "Delivery address pending"}
+                      </p>
+                    ) : null}
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Table: {order.tableId ?? "N/A"}</p>
                     <div className="text-sm font-semibold mt-2 text-slate-700 dark:text-slate-200">₹{order.amount}</div>
                   </div>
@@ -200,6 +220,9 @@ export function OrderHistoryPanel() {
 
                       {/* Status Info */}
                       <div className="text-xs font-medium text-slate-600 dark:text-slate-300 space-y-1 bg-slate-50 dark:bg-slate-700 rounded p-2 border border-slate-200 dark:border-slate-600">
+                        {order.type === "Delivery" && order.deliveryAddress ? (
+                          <p>✓ Location: {order.deliveryAddress.autoLocation || "N/A"}</p>
+                        ) : null}
                         <p>✓ Table: {order.tableId ?? "N/A"}</p>
                         <p>✓ Paid: {order.originalOrder.paymentStatus === "paid" ? "Yes" : "No"}</p>
                         <p>✓ Prepared: {order.originalOrder.preparationStatus === "prepared" ? "Yes" : "No"}</p>

@@ -50,6 +50,12 @@ type BackendOrder = {
   phone?: string;
   section?: string;
   tableId?: string;
+  deliveryAddress?: {
+    flatNo?: string;
+    roomNo?: string;
+    landmark?: string;
+    autoLocation?: string;
+  } | null;
   payment?: string;
   paymentType?: string;
   paymentStatus?: string;
@@ -129,6 +135,14 @@ function mapOrderFromBackend(order: BackendOrder, index: number): BillOrder {
     mobile: order.mobile?.trim() || order.phone?.trim() || "",
     section: normalizeSection(order.section),
     tableId: order.tableId ?? null,
+    deliveryAddress: order.deliveryAddress
+      ? {
+          flatNo: String(order.deliveryAddress.flatNo ?? ""),
+          roomNo: String(order.deliveryAddress.roomNo ?? ""),
+          landmark: String(order.deliveryAddress.landmark ?? ""),
+          autoLocation: String(order.deliveryAddress.autoLocation ?? ""),
+        }
+      : null,
     payment: normalizePayment(order.payment ?? order.paymentType),
     items,
     settled: Boolean(order.settled),
@@ -222,6 +236,10 @@ export default function Home() {
   const [newOrderCustomer, setNewOrderCustomer] = useState("");
   const [newOrderMobile, setNewOrderMobile] = useState("");
   const [newOrderType, setNewOrderType] = useState<OrderType>("Dine-In");
+  const [newOrderFlatNo, setNewOrderFlatNo] = useState("");
+  const [newOrderRoomNo, setNewOrderRoomNo] = useState("");
+  const [newOrderLandmark, setNewOrderLandmark] = useState("");
+  const [newOrderAutoLocation, setNewOrderAutoLocation] = useState("");
   const [newOrderTableId, setNewOrderTableId] = useState<string | null>(null);
   const [isSavingNewOrder, setIsSavingNewOrder] = useState(false);
   const [newTableLabel, setNewTableLabel] = useState("");
@@ -391,6 +409,32 @@ export default function Home() {
       setNewOrderTableId(null);
       setCandidateTableId(null);
     }
+    if (value !== "Delivery") {
+      setNewOrderFlatNo("");
+      setNewOrderRoomNo("");
+      setNewOrderLandmark("");
+      setNewOrderAutoLocation("");
+    }
+  }
+
+  function detectNewOrderLocation() {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setBanner("Location is not supported in this browser.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const latitude = position.coords.latitude.toFixed(6);
+        const longitude = position.coords.longitude.toFixed(6);
+        setNewOrderAutoLocation(`${latitude}, ${longitude}`);
+        setBanner("Auto location detected.");
+      },
+      () => {
+        setBanner("Unable to detect location.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
   }
 
   async function toggleTableStatus(tableId: string) {
@@ -645,6 +689,7 @@ export default function Home() {
         type: currentOrder.type,
         section: currentOrder.section,
         tableId: currentOrder.tableId,
+        deliveryAddress: currentOrder.deliveryAddress,
         payment: currentOrder.payment,
         paymentStatus: currentOrder.paymentStatus,
         preparationStatus: currentOrder.preparationStatus,
@@ -760,6 +805,14 @@ export default function Home() {
       type: newOrderType,
       section: "AC",
       tableId: newOrderType === "Dine-In" ? newOrderTableId : null,
+      deliveryAddress: newOrderType === "Delivery"
+        ? {
+            flatNo: newOrderFlatNo.trim(),
+            roomNo: newOrderRoomNo.trim(),
+            landmark: newOrderLandmark.trim(),
+            autoLocation: newOrderAutoLocation.trim(),
+          }
+        : null,
       payment: "UPI",
       items: [] as BackendOrderItem[],
       settled: false,
@@ -804,6 +857,14 @@ export default function Home() {
         mobile: mobileValue,
         section: "AC",
         tableId: newOrderType === "Dine-In" ? newOrderTableId : null,
+        deliveryAddress: newOrderType === "Delivery"
+          ? {
+              flatNo: newOrderFlatNo.trim(),
+              roomNo: newOrderRoomNo.trim(),
+              landmark: newOrderLandmark.trim(),
+              autoLocation: newOrderAutoLocation.trim(),
+            }
+          : null,
         payment: "UPI",
         items: [],
         settled: false,
@@ -819,6 +880,10 @@ export default function Home() {
     setNewOrderCustomer("");
     setNewOrderMobile("");
     setNewOrderType("Dine-In");
+    setNewOrderFlatNo("");
+    setNewOrderRoomNo("");
+    setNewOrderLandmark("");
+    setNewOrderAutoLocation("");
     setNewOrderTableId(null);
     setCandidateTableId(null);
     setIsSavingNewOrder(false);
@@ -894,12 +959,20 @@ export default function Home() {
               newOrderCustomer={newOrderCustomer}
               newOrderMobile={newOrderMobile}
               newOrderType={newOrderType}
+              newOrderFlatNo={newOrderFlatNo}
+              newOrderRoomNo={newOrderRoomNo}
+              newOrderLandmark={newOrderLandmark}
+              newOrderAutoLocation={newOrderAutoLocation}
               tables={tables}
               newOrderTableId={newOrderTableId}
               isSavingNewOrder={isSavingNewOrder}
               onCustomerChange={setNewOrderCustomer}
               onMobileChange={setNewOrderMobile}
               onTypeChange={handleNewOrderTypeChange}
+              onFlatNoChange={setNewOrderFlatNo}
+              onRoomNoChange={setNewOrderRoomNo}
+              onLandmarkChange={setNewOrderLandmark}
+              onDetectLocation={detectNewOrderLocation}
               onNewOrderTableChange={setNewOrderTableId}
               onOpenTableView={() => {
                 if (newOrderType !== "Dine-In") {

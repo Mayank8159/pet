@@ -17,12 +17,26 @@ function normalizeOrderPayload(payload) {
         .filter((item) => item.name && Number.isFinite(item.qty) && item.qty > 0 && Number.isFinite(item.price))
     : [];
 
+  const type = payload.type || payload.orderType || "Dine-In";
+  const rawDeliveryAddress = payload.deliveryAddress && typeof payload.deliveryAddress === "object"
+    ? payload.deliveryAddress
+    : {};
+  const deliveryAddress = type === "Delivery"
+    ? {
+        flatNo: String(rawDeliveryAddress.flatNo || "").trim(),
+        roomNo: String(rawDeliveryAddress.roomNo || "").trim(),
+        landmark: String(rawDeliveryAddress.landmark || "").trim(),
+        autoLocation: String(rawDeliveryAddress.autoLocation || "").trim(),
+      }
+    : null;
+
   return {
     customer: String(payload.customer || payload.customerName || "Guest").trim() || "Guest",
     mobile: String(payload.mobile || payload.phone || "").trim(),
-    type: payload.type || payload.orderType || "Dine-In",
+    type,
     section: payload.section || "AC",
     tableId: payload.tableId || null,
+    deliveryAddress,
     payment: payload.payment || payload.paymentType || "UPI",
     paymentStatus: payload.paymentStatus || "pending",
     preparationStatus: payload.preparationStatus || "pending",
@@ -43,6 +57,7 @@ function toResponse(order) {
     mobile: order.mobile,
     section: order.section,
     tableId: order.tableId,
+    deliveryAddress: order.deliveryAddress || null,
     payment: order.payment,
     paymentStatus: order.paymentStatus,
     preparationStatus: order.preparationStatus,
@@ -123,6 +138,7 @@ router.patch("/:id", async (req, res, next) => {
     existing.type = payload.type;
     existing.section = payload.section;
     existing.tableId = payload.tableId;
+    existing.deliveryAddress = payload.deliveryAddress;
     existing.payment = payload.payment;
     existing.paymentStatus = payload.paymentStatus;
     existing.preparationStatus = payload.preparationStatus;

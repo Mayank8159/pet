@@ -12,6 +12,18 @@ const orderItemSchema = new mongoose.Schema(
   },
 );
 
+const deliveryAddressSchema = new mongoose.Schema(
+  {
+    flatNo: { type: String, default: "", trim: true },
+    roomNo: { type: String, default: "", trim: true },
+    landmark: { type: String, default: "", trim: true },
+    autoLocation: { type: String, default: "", trim: true },
+  },
+  {
+    _id: false,
+  },
+);
+
 const orderSchema = new mongoose.Schema(
   {
     orderCode: { type: String, unique: true, index: true },
@@ -20,6 +32,7 @@ const orderSchema = new mongoose.Schema(
     type: { type: String, enum: ["Delivery", "Takeaway", "Dine-In"], default: "Dine-In" },
     section: { type: String, enum: ["AC", "Non-AC", "Rooftop"], default: "AC" },
     tableId: { type: String, default: null },
+    deliveryAddress: { type: deliveryAddressSchema, default: null },
     payment: { type: String, enum: ["Cash", "Card", "UPI"], default: "UPI" },
     paymentStatus: { type: String, enum: ["pending", "paid"], default: "pending" },
     preparationStatus: { type: String, enum: ["pending", "prepared"], default: "pending" },

@@ -16,6 +16,13 @@ export type OrderItem = {
   price: number;
 };
 
+export type DeliveryAddress = {
+  flatNo: string;
+  roomNo: string;
+  landmark: string;
+  autoLocation: string;
+};
+
 export type ActiveOrder = {
   id: string;
   customer: string;
@@ -29,6 +36,7 @@ export type BillOrder = ActiveOrder & {
   mobile: string;
   section: SectionType;
   tableId: string | null;
+  deliveryAddress: DeliveryAddress | null;
   payment: PaymentType;
   items: OrderItem[];
   settled: boolean;

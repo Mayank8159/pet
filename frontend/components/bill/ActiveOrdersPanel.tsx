@@ -15,12 +15,20 @@ type ActiveOrdersPanelProps = {
   newOrderCustomer: string;
   newOrderMobile: string;
   newOrderType: OrderType;
+  newOrderFlatNo: string;
+  newOrderRoomNo: string;
+  newOrderLandmark: string;
+  newOrderAutoLocation: string;
   tables: TableNode[];
   newOrderTableId: string | null;
   isSavingNewOrder: boolean;
   onCustomerChange: (value: string) => void;
   onMobileChange: (value: string) => void;
   onTypeChange: (value: OrderType) => void;
+  onFlatNoChange: (value: string) => void;
+  onRoomNoChange: (value: string) => void;
+  onLandmarkChange: (value: string) => void;
+  onDetectLocation: () => void;
   onNewOrderTableChange: (tableId: string | null) => void;
   onOpenTableView: () => void;
   onCreateOrder: () => void;
@@ -36,12 +44,20 @@ export function ActiveOrdersPanel({
   newOrderCustomer,
   newOrderMobile,
   newOrderType,
+  newOrderFlatNo,
+  newOrderRoomNo,
+  newOrderLandmark,
+  newOrderAutoLocation,
   tables,
   newOrderTableId,
   isSavingNewOrder,
   onCustomerChange,
   onMobileChange,
   onTypeChange,
+  onFlatNoChange,
+  onRoomNoChange,
+  onLandmarkChange,
+  onDetectLocation,
   onNewOrderTableChange,
   onOpenTableView,
   onCreateOrder,
@@ -90,6 +106,43 @@ export function ActiveOrdersPanel({
               </Listbox.Options>
             </div>
           </Listbox>
+          {newOrderType === "Delivery" ? (
+            <>
+              <input
+                value={newOrderFlatNo}
+                onChange={(event) => onFlatNoChange(event.target.value)}
+                placeholder="Flat No"
+                className={`rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
+              />
+              <input
+                value={newOrderRoomNo}
+                onChange={(event) => onRoomNoChange(event.target.value)}
+                placeholder="Room No"
+                className={`rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
+              />
+              <input
+                value={newOrderLandmark}
+                onChange={(event) => onLandmarkChange(event.target.value)}
+                placeholder="Nearby landmark"
+                className={`rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
+              />
+              <div className="grid grid-cols-[1fr_auto] gap-2">
+                <input
+                  value={newOrderAutoLocation}
+                  readOnly
+                  placeholder="Auto location"
+                  className={`rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
+                />
+                <button
+                  type="button"
+                  onClick={onDetectLocation}
+                  className={`inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium ${palette.selectTable}`}
+                >
+                  Detect
+                </button>
+              </div>
+            </>
+          ) : null}
           {newOrderType === "Dine-In" ? (
             <div className="grid grid-cols-[1fr_auto] gap-2">
               <Listbox value={newOrderTableId} onChange={onNewOrderTableChange}>
