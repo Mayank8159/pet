@@ -1,7 +1,8 @@
 "use client";
 
+import { Listbox } from "@headlessui/react";
 import { motion } from "framer-motion";
-import { Plus } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import type { BillOrder, OrderType, Palette } from "./types";
 
 type ActiveOrdersPanelProps = {
@@ -59,15 +60,27 @@ export function ActiveOrdersPanel({
             placeholder="Mobile number"
             className={`rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
           />
-          <select
-            value={newOrderType}
-            onChange={(event) => onTypeChange(event.target.value as OrderType)}
-            className={`rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
-          >
-            <option value="Dine-In">Dine-In</option>
-            <option value="Takeaway">Takeaway</option>
-            <option value="Delivery">Delivery</option>
-          </select>
+          <Listbox value={newOrderType} onChange={onTypeChange}>
+            <div className="relative z-[130]">
+              <Listbox.Button className={palette.dropdownBase ?? `w-full appearance-none rounded-xl border px-3 py-2 pr-9 text-sm outline-none ${palette.headerPill}`}>
+                <span>{newOrderType}</span>
+                <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 ${isDark ? "text-slate-300" : "text-slate-500"}`} />
+              </Listbox.Button>
+              <Listbox.Options className={palette.dropdownMenu ?? `absolute z-[160] mt-1 w-full rounded-xl border p-1 text-sm backdrop-blur-xl shadow-[0_18px_40px_rgba(2,6,23,0.35)] ${palette.sectionMenu}`}>
+                {(["Dine-In", "Takeaway", "Delivery"] as OrderType[]).map((option) => (
+                  <Listbox.Option
+                    key={option}
+                    value={option}
+                    className={({ active }) =>
+                      `cursor-pointer rounded-lg px-3 py-2 ${active ? (palette.dropdownOptionActive ?? palette.sectionActive) : palette.textMuted}`
+                    }
+                  >
+                    {option}
+                  </Listbox.Option>
+                ))}
+              </Listbox.Options>
+            </div>
+          </Listbox>
           <button
             type="button"
             onClick={onCreateOrder}

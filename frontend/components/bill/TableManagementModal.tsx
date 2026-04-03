@@ -2,7 +2,7 @@
 
 import { Dialog } from "@headlessui/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { LayoutGrid, Plus, Sparkles, X } from "lucide-react";
+import { ChevronDown, LayoutGrid, Plus, Sparkles, X } from "lucide-react";
 import type { Palette, TableNode, TableStatus } from "./types";
 
 type TableManagementModalProps = {
@@ -104,14 +104,17 @@ export function TableManagementModal({
                         className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
                       />
                       <div className="grid grid-cols-2 gap-2">
-                        <select
-                          value={newTableStatus}
-                          onChange={(event) => onNewTableStatusChange(event.target.value as TableStatus)}
-                          className={`rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
-                        >
-                          <option value="Available">Available</option>
-                          <option value="Occupied">Occupied</option>
-                        </select>
+                        <label className="relative block">
+                          <select
+                            value={newTableStatus}
+                            onChange={(event) => onNewTableStatusChange(event.target.value as TableStatus)}
+                            className={`w-full appearance-none rounded-xl border px-3 py-2 pr-9 text-sm outline-none ${palette.headerPill}`}
+                          >
+                            <option value="Available">Available</option>
+                            <option value="Occupied">Occupied</option>
+                          </select>
+                          <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 ${isDark ? "text-slate-300" : "text-slate-500"}`} />
+                        </label>
                         <button
                           type="button"
                           onClick={onAddTable}

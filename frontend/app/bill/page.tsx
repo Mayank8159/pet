@@ -596,6 +596,13 @@ export default function Home() {
       : "border-white/8 bg-[#ffffff] text-slate-800 backdrop-blur-md",
     sectionMenu: isDark ? "border-white/8 bg-[#101726]/96" : "border-white/8 bg-[#ffffff]/96",
     sectionActive: isDark ? "bg-[#f06a5a]/15 text-[#ffd8d3]" : "bg-[#cc4b3e]/12 text-[#7f1d16]",
+    dropdownBase: isDark
+      ? "w-full appearance-none rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 pr-9 text-sm text-slate-100 outline-none transition focus:border-[#f06a5a]/45"
+      : "w-full appearance-none rounded-xl border border-black/8 bg-white px-3 py-2 pr-9 text-sm text-slate-800 outline-none transition focus:border-[#cc4b3e]/35",
+    dropdownMenu: isDark
+      ? "absolute z-[160] mt-1 w-full rounded-xl border border-white/10 bg-[#101726]/96 p-1 text-sm backdrop-blur-xl shadow-[0_18px_40px_rgba(2,6,23,0.35)]"
+      : "absolute z-[160] mt-1 w-full rounded-xl border border-black/8 bg-white/96 p-1 text-sm backdrop-blur-xl shadow-[0_18px_40px_rgba(2,6,23,0.18)]",
+    dropdownOptionActive: isDark ? "bg-[#f06a5a]/15 text-[#ffd8d3]" : "bg-[#cc4b3e]/12 text-[#7f1d16]",
     selectTable: isDark ? "border-[#6be7cf]/25 bg-[#6be7cf]/12 text-[#d8fff7]" : "border-[#cc4b3e]/20 bg-[#cc4b3e]/10 text-[#7f1d16]",
     panel: isDark ? "border-white/8 bg-white/[0.05]" : "border-white/8 bg-[#ffffff]/86",
     panelSoft: isDark ? "border-white/8 bg-white/[0.055]" : "border-white/8 bg-[#ffffff]/92",
@@ -866,17 +873,17 @@ export default function Home() {
                   >
                     <Listbox value={section} onChange={(nextSection) => updateCurrentOrder({ section: nextSection })}>
                       <div className="relative z-[140]">
-                        <Listbox.Button className={`relative z-[141] inline-flex min-w-32 items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm backdrop-blur-md ${palette.sectionButton}`}>
+                        <Listbox.Button className={`relative z-[141] min-w-32 ${palette.dropdownBase}`}>
                           <span>Section: {section}</span>
-                          <ChevronDown className="h-4 w-4 text-slate-300" />
+                          <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 ${isDark ? "text-slate-300" : "text-slate-500"}`} />
                         </Listbox.Button>
-                        <Listbox.Options className={`absolute z-[160] mt-1 w-full rounded-xl p-1 text-sm backdrop-blur-xl shadow-[0_18px_40px_rgba(2,6,23,0.35)] ${palette.sectionMenu}`}>
+                        <Listbox.Options className={palette.dropdownMenu}>
                           {sections.map((option) => (
                             <Listbox.Option
                               key={option}
                               value={option}
                               className={({ active }) =>
-                                `cursor-pointer rounded-lg px-3 py-2 ${active ? palette.sectionActive : palette.textMuted}`
+                                `cursor-pointer rounded-lg px-3 py-2 ${active ? palette.dropdownOptionActive : palette.textMuted}`
                               }
                             >
                               {option}
