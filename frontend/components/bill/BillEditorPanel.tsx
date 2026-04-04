@@ -1,7 +1,7 @@
 "use client";
 
-import { Bike, Calculator, CreditCard, Printer, QrCode, Search, User, Wallet } from "lucide-react";
-import type { MenuItem, OrderItem, Palette, PaymentType } from "./types";
+import { Bike, Calculator, Printer, QrCode, Search, User, Wallet } from "lucide-react";
+import type { MenuItem, OrderItem, Palette, PaymentType, SplitPayment } from "./types";
 
 type BillEditorPanelProps = {
   isDark: boolean;
@@ -15,6 +15,7 @@ type BillEditorPanelProps = {
   tax: number;
   grandTotal: number;
   payment: PaymentType;
+  splitPayment: SplitPayment | null;
   hasCurrentOrder: boolean;
   onMobileChange: (value: string) => void;
   onCustomerNameChange: (value: string) => void;
@@ -22,6 +23,7 @@ type BillEditorPanelProps = {
   onAddItem: (menuItem: MenuItem) => void;
   onUpdateQty: (id: string, delta: number) => void;
   onPaymentChange: (value: PaymentType) => void;
+  onSplitPaymentChange: (value: SplitPayment) => void;
   onSaveAndPrint: () => void;
   onSettleAndSave: () => void;
   money: (value: number) => string;
@@ -39,6 +41,7 @@ export function BillEditorPanel({
   tax,
   grandTotal,
   payment,
+  splitPayment,
   hasCurrentOrder,
   onMobileChange,
   onCustomerNameChange,
@@ -46,10 +49,13 @@ export function BillEditorPanel({
   onAddItem,
   onUpdateQty,
   onPaymentChange,
+  onSplitPaymentChange,
   onSaveAndPrint,
   onSettleAndSave,
   money,
 }: BillEditorPanelProps) {
+  const splitCash = splitPayment?.cash ?? 0;
+  const splitUpi = splitPayment?.upi ?? 0;
   if (!hasCurrentOrder) {
     return (
       <section className={`flex flex-col rounded-[28px] p-3.5 backdrop-blur-lg ${palette.panel}`}>
@@ -174,8 +180,8 @@ export function BillEditorPanel({
         <div className="grid gap-2 sm:grid-cols-3">
           {([
             { key: "Cash", icon: Wallet },
-            { key: "Card", icon: CreditCard },
             { key: "UPI", icon: QrCode },
+            { key: "Split", icon: Wallet },
           ] as { key: PaymentType; icon: React.ComponentType<{ className?: string }> }[]).map((option) => (
             <button
               key={option.key}
@@ -194,6 +200,46 @@ export function BillEditorPanel({
             </button>
           ))}
         </div>
+
+        {payment === "Split" ? (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <label className={`rounded-2xl border px-3 py-2 text-sm ${palette.headerPill}`}>
+              <span className={`mb-1 block text-xs uppercase tracking-[0.14em] ${palette.textMuted}`}>Cash amount</span>
+              <input
+                type="number"
+                min={0}
+                step="1"
+                value={splitCash}
+                onChange={(event) =>
+                  onSplitPaymentChange({
+                    cash: Number(event.target.value || 0),
+                    upi: splitUpi,
+                  })
+                }
+                className="w-full bg-transparent text-sm text-slate-900 outline-none"
+              />
+            </label>
+            <label className={`rounded-2xl border px-3 py-2 text-sm ${palette.headerPill}`}>
+              <span className={`mb-1 block text-xs uppercase tracking-[0.14em] ${palette.textMuted}`}>UPI amount</span>
+              <input
+                type="number"
+                min={0}
+                step="1"
+                value={splitUpi}
+                onChange={(event) =>
+                  onSplitPaymentChange({
+                    cash: splitCash,
+                    upi: Number(event.target.value || 0),
+                  })
+                }
+                className="w-full bg-transparent text-sm text-slate-900 outline-none"
+              />
+            </label>
+            <p className={`sm:col-span-2 text-xs ${palette.textMuted}`}>
+              Split total: {money(splitCash + splitUpi)} | Bill total: {money(grandTotal)}
+            </p>
+          </div>
+        ) : null}
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <button

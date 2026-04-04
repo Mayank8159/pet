@@ -27,6 +27,12 @@ type BackendOrder = {
     autoLocation?: string;
   } | null;
   paymentStatus?: string;
+  payment?: string;
+  paymentType?: string;
+  splitPayment?: {
+    cash?: number;
+    upi?: number;
+  } | null;
   preparationStatus?: string;
   unpaidAmountCleared?: boolean;
   amount?: number;
@@ -36,6 +42,10 @@ type BackendOrder = {
 };
 
 function mapOrderFromBackend(order: BackendOrder, index: number): BillOrder & { paymentStatus: string; preparationStatus: string; unpaidAmountCleared: boolean } {
+  const normalizedPayment = order.payment === "Cash" || order.payment === "UPI" || order.payment === "Split"
+    ? order.payment
+    : "None";
+
   return {
     id: String(order.id ?? `#${index + 1}`),
     customer: order.customer || "Guest",
@@ -54,7 +64,13 @@ function mapOrderFromBackend(order: BackendOrder, index: number): BillOrder & { 
           autoLocation: String(order.deliveryAddress.autoLocation ?? ""),
         }
       : null,
-    payment: "UPI",
+    payment: normalizedPayment,
+    splitPayment: normalizedPayment === "Split"
+      ? {
+          cash: Number(order.splitPayment?.cash ?? 0),
+          upi: Number(order.splitPayment?.upi ?? 0),
+        }
+      : null,
     items: (order.items || []).map((item, i) => ({
       id: String(i),
       name: item.name,
@@ -68,7 +84,11 @@ function mapOrderFromBackend(order: BackendOrder, index: number): BillOrder & { 
   };
 }
 
-export function OrderHistoryPanel() {
+type OrderHistoryPanelProps = {
+  isDark?: boolean;
+};
+
+export function OrderHistoryPanel({ isDark = false }: OrderHistoryPanelProps) {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
@@ -138,6 +158,21 @@ export function OrderHistoryPanel() {
             const colorStatus = getOrderColorStatus(order);
             const isExpanded = expandedOrderId === order.id;
             const showUnpaidCheckbox = shouldShowUnpaidCheckbox(order);
+            const lightCardTone =
+              colorStatus === "green"
+                ? "bg-white border-green-500 shadow-[0_8px_24px_rgba(22,163,74,0.12)]"
+                : colorStatus === "unpaid-history"
+                  ? "bg-white border-orange-500 shadow-[0_8px_24px_rgba(234,88,12,0.12)]"
+                  : colorStatus === "yellow"
+                    ? "bg-white border-yellow-500 shadow-[0_8px_24px_rgba(202,138,4,0.12)]"
+                    : "bg-white border-blue-500 shadow-[0_8px_24px_rgba(37,99,235,0.12)]";
+            const cardTone = isDark
+              ? getOrderColorClasses(colorStatus)
+              : `rounded-lg border-2 transition-all duration-300 shadow-md hover:shadow-lg ${lightCardTone}`;
+            const titleText = isDark ? "text-white" : "text-slate-900";
+            const metaText = isDark ? "text-slate-300" : "text-slate-800";
+            const mutedText = isDark ? "text-slate-400" : "text-slate-700";
+            const amountText = isDark ? "text-slate-200" : "text-slate-900";
 
             return (
               <motion.div
@@ -147,19 +182,22 @@ export function OrderHistoryPanel() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
-                className={`p-4 cursor-pointer ${getOrderColorClasses(colorStatus)}`}
+                className={`p-4 cursor-pointer ${cardTone}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
-                    <h3 className="font-bold text-xl text-slate-900 dark:text-white">{order.id}</h3>
-                    <p className="text-sm font-medium text-slate-600 dark:text-slate-300 mt-1">{order.customer}</p>
+                    <h3 className={`font-bold text-xl ${titleText}`}>{order.id}</h3>
+                    <p className={`mt-1 text-sm font-semibold ${metaText}`}>{order.customer}</p>
                     {order.type === "Delivery" && order.deliveryAddress ? (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      <p className={`mt-1 text-xs font-medium ${mutedText}`}>
                         {`${order.deliveryAddress.flatNo || ""}${order.deliveryAddress.roomNo ? `, ${order.deliveryAddress.roomNo}` : ""}${order.deliveryAddress.landmark ? `, ${order.deliveryAddress.landmark}` : ""}`.trim() || "Delivery address pending"}
                       </p>
                     ) : null}
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Table: {order.tableId ?? "N/A"}</p>
-                    <div className="text-sm font-semibold mt-2 text-slate-700 dark:text-slate-200">₹{order.amount}</div>
+                    <p className={`mt-1 text-xs font-medium ${mutedText}`}>Table: {order.tableId ?? "N/A"}</p>
+                    <div className={`mt-2 text-sm font-semibold ${amountText}`}>₹{order.amount}</div>
+                    <p className={`mt-1 text-xs font-medium ${mutedText}`}>
+                      Payment: {order.payment === "Split" ? `Split (Cash ₹${order.splitPayment?.cash ?? 0} + UPI ₹${order.splitPayment?.upi ?? 0})` : order.payment}
+                    </p>
                   </div>
                   <span className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shadow-sm ${
                     colorStatus === "green" ? "bg-green-400 text-green-950 dark:bg-green-700 dark:text-green-100" :
@@ -177,19 +215,19 @@ export function OrderHistoryPanel() {
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="mt-3 pt-3 border-t border-slate-300 dark:border-slate-600 space-y-2"
+                      className={`mt-3 space-y-2 border-t pt-3 ${isDark ? "border-slate-600" : "border-slate-300"}`}
                     >
                       {/* Order Items */}
-                      <div className="bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 p-3 text-sm max-h-40 overflow-y-auto shadow-sm">
+                      <div className={`max-h-40 overflow-y-auto rounded border p-3 text-sm shadow-sm ${isDark ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-white"}`}>
                         {order.items.length > 0 ? (
                           order.items.map((item, idx) => (
-                            <div key={idx} className="flex justify-between py-2 text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-slate-700 last:border-b-0">
-                              <span className="font-medium text-slate-800 dark:text-slate-100">{item.qty}x {item.name}</span>
-                              <span className="font-semibold text-slate-900 dark:text-slate-50">₹{item.price * item.qty}</span>
+                            <div key={idx} className={`flex justify-between border-b py-2 last:border-b-0 ${isDark ? "border-slate-700 text-slate-200" : "border-slate-100 text-slate-700"}`}>
+                              <span className={`font-medium ${isDark ? "text-slate-100" : "text-slate-900"}`}>{item.qty}x {item.name}</span>
+                              <span className={`font-semibold ${isDark ? "text-slate-50" : "text-slate-900"}`}>₹{item.price * item.qty}</span>
                             </div>
                           ))
                         ) : (
-                          <p className="text-slate-500 dark:text-slate-400 italic">No items</p>
+                          <p className={`italic ${isDark ? "text-slate-400" : "text-slate-500"}`}>No items</p>
                         )}
                       </div>
 
@@ -219,7 +257,7 @@ export function OrderHistoryPanel() {
                       )}
 
                       {/* Status Info */}
-                      <div className="text-xs font-medium text-slate-600 dark:text-slate-300 space-y-1 bg-slate-50 dark:bg-slate-700 rounded p-2 border border-slate-200 dark:border-slate-600">
+                      <div className={`space-y-1 rounded border p-2 text-xs font-medium ${isDark ? "border-slate-600 bg-slate-700 text-slate-300" : "border-slate-200 bg-white text-slate-800"}`}>
                         {order.type === "Delivery" && order.deliveryAddress ? (
                           <p>✓ Location: {order.deliveryAddress.autoLocation || "N/A"}</p>
                         ) : null}

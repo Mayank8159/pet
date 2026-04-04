@@ -1,7 +1,12 @@
 export type OrderType = "Delivery" | "Takeaway" | "Dine-In";
 export type SectionType = "AC" | "Non-AC" | "Rooftop";
-export type PaymentType = "Cash" | "Card" | "UPI";
+export type PaymentType = "None" | "Cash" | "UPI" | "Split";
 export type TableStatus = "Available" | "Occupied";
+
+export type SplitPayment = {
+  cash: number;
+  upi: number;
+};
 
 export type TableNode = {
   id: string;
@@ -38,6 +43,7 @@ export type BillOrder = ActiveOrder & {
   tableId: string | null;
   deliveryAddress: DeliveryAddress | null;
   payment: PaymentType;
+  splitPayment: SplitPayment | null;
   items: OrderItem[];
   settled: boolean;
   paymentStatus: "pending" | "paid";

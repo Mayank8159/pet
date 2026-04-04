@@ -4,6 +4,54 @@ const Order = require("../models/Order");
 const { humanElapsed } = require("../utils/time");
 
 const router = express.Router();
+const VALID_PAYMENTS = new Set(["Cash", "UPI", "Split"]);
+
+function normalizePayment(value) {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  return VALID_PAYMENTS.has(normalized) ? normalized : undefined;
+}
+
+function normalizeSplitPayment(raw) {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const cash = Number(raw.cash ?? 0);
+  const upi = Number(raw.upi ?? 0);
+  const safeCash = Number.isFinite(cash) && cash >= 0 ? Number(cash.toFixed(2)) : 0;
+  const safeUpi = Number.isFinite(upi) && upi >= 0 ? Number(upi.toFixed(2)) : 0;
+
+  return {
+    cash: safeCash,
+    upi: safeUpi,
+  };
+}
+
+function validatePaymentForCollection(order) {
+  const payment = normalizePayment(order.payment);
+  if (!payment) {
+    return { valid: false, message: "Select payment mode in bill section." };
+  }
+
+  if (payment !== "Split") {
+    return { valid: true };
+  }
+
+  const split = normalizeSplitPayment(order.splitPayment);
+  const cash = split?.cash ?? 0;
+  const upi = split?.upi ?? 0;
+
+  if (cash <= 0 || upi <= 0) {
+    return { valid: false, message: "For split payment, both cash and UPI amounts are required." };
+  }
+
+  const total = Number(order.amount ?? 0);
+  if (Math.abs(cash + upi - total) > 0.01) {
+    return { valid: false, message: "Split payment must match the total bill amount." };
+  }
+
+  return { valid: true };
+}
 
 function normalizeOrderPayload(payload) {
   const items = Array.isArray(payload.items)
@@ -30,6 +78,9 @@ function normalizeOrderPayload(payload) {
       }
     : null;
 
+  const payment = normalizePayment(payload.payment || payload.paymentType) || undefined;
+  const splitPayment = normalizeSplitPayment(payload.splitPayment);
+
   return {
     customer: String(payload.customer || payload.customerName || "Guest").trim() || "Guest",
     mobile: String(payload.mobile || payload.phone || "").trim(),
@@ -37,7 +88,8 @@ function normalizeOrderPayload(payload) {
     section: payload.section || "AC",
     tableId: payload.tableId || null,
     deliveryAddress,
-    payment: payload.payment || payload.paymentType || "UPI",
+    payment,
+    splitPayment: payment === "Split" ? splitPayment : null,
     paymentStatus: payload.paymentStatus || "pending",
     preparationStatus: payload.preparationStatus || "pending",
     unpaidAmountCleared: Boolean(payload.unpaidAmountCleared),
@@ -58,7 +110,13 @@ function toResponse(order) {
     section: order.section,
     tableId: order.tableId,
     deliveryAddress: order.deliveryAddress || null,
-    payment: order.payment,
+    payment: order.payment || null,
+    splitPayment: order.payment === "Split" && order.splitPayment
+      ? {
+          cash: Number(order.splitPayment.cash ?? 0),
+          upi: Number(order.splitPayment.upi ?? 0),
+        }
+      : null,
     paymentStatus: order.paymentStatus,
     preparationStatus: order.preparationStatus,
     unpaidAmountCleared: order.unpaidAmountCleared,
@@ -140,6 +198,7 @@ router.patch("/:id", async (req, res, next) => {
     existing.tableId = payload.tableId;
     existing.deliveryAddress = payload.deliveryAddress;
     existing.payment = payload.payment;
+    existing.splitPayment = payload.splitPayment;
     existing.paymentStatus = payload.paymentStatus;
     existing.preparationStatus = payload.preparationStatus;
     existing.unpaidAmountCleared = payload.unpaidAmountCleared;
@@ -161,10 +220,18 @@ router.patch("/:id/settle", async (req, res, next) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    existing.settled = true;
-    if (req.body?.payment) {
-      existing.payment = req.body.payment;
+    if (req.body?.payment || req.body?.paymentType) {
+      const nextPayment = normalizePayment(req.body.payment || req.body.paymentType);
+      existing.payment = nextPayment;
+      existing.splitPayment = nextPayment === "Split" ? normalizeSplitPayment(req.body.splitPayment) : null;
     }
+
+    const validation = validatePaymentForCollection(existing.toObject());
+    if (!validation.valid) {
+      return res.status(400).json({ message: validation.message });
+    }
+
+    existing.settled = true;
     await existing.save();
 
     res.json(toResponse(existing.toObject()));
@@ -233,7 +300,16 @@ router.patch("/:id/paid", async (req, res, next) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    existing.paymentStatus = existing.paymentStatus === "paid" ? "pending" : "paid";
+    const markAsPaid = existing.paymentStatus !== "paid";
+    if (markAsPaid) {
+      const validation = validatePaymentForCollection(existing.toObject());
+      if (!validation.valid) {
+        return res.status(400).json({ message: validation.message });
+      }
+      existing.paymentStatus = "paid";
+    } else {
+      existing.paymentStatus = "pending";
+    }
     await existing.save();
 
     res.json(toResponse(existing.toObject()));

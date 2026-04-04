@@ -68,7 +68,7 @@ export default function ReportsPage() {
               <h1 className="mt-2 text-3xl font-semibold">Completed & Unpaid Orders</h1>
             </header>
 
-            <OrderHistoryPanel />
+            <OrderHistoryPanel isDark={isDark} />
           </div>
         </main>
       </div>

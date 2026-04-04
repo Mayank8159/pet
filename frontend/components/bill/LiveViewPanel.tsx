@@ -27,6 +27,12 @@ type BackendOrder = {
     autoLocation?: string;
   } | null;
   paymentStatus?: string;
+  payment?: string;
+  paymentType?: string;
+  splitPayment?: {
+    cash?: number;
+    upi?: number;
+  } | null;
   preparationStatus?: string;
   unpaidAmountCleared?: boolean;
   amount?: number;
@@ -37,6 +43,10 @@ type BackendOrder = {
 };
 
 function mapOrderFromBackend(order: BackendOrder, index: number): BillOrder & { paymentStatus: string; preparationStatus: string; unpaidAmountCleared: boolean; createdAt: string } {
+  const normalizedPayment = order.payment === "Cash" || order.payment === "UPI" || order.payment === "Split"
+    ? order.payment
+    : "None";
+
   return {
     id: String(order.id ?? `#${index + 1}`),
     customer: order.customer || "Guest",
@@ -55,7 +65,13 @@ function mapOrderFromBackend(order: BackendOrder, index: number): BillOrder & { 
           autoLocation: String(order.deliveryAddress.autoLocation ?? ""),
         }
       : null,
-    payment: "UPI",
+    payment: normalizedPayment,
+    splitPayment: normalizedPayment === "Split"
+      ? {
+          cash: Number(order.splitPayment?.cash ?? 0),
+          upi: Number(order.splitPayment?.upi ?? 0),
+        }
+      : null,
     items: (order.items || []).map((item, i) => ({
       id: String(i),
       name: item.name,
@@ -74,6 +90,7 @@ export function LiveViewPanel() {
   const [orders, setOrders] = useState<any[]>([]);
   const [timers, setTimers] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [banner, setBanner] = useState<string | null>(null);
 
   // Load orders on mount and set up polling
   useEffect(() => {
@@ -138,9 +155,24 @@ export function LiveViewPanel() {
       const response = await axios.get(`${POS_API_BASE_URL}/api/pos/orders/live`, { timeout: 6000 });
       setOrders(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const backendMessage = typeof error.response?.data?.message === "string"
+          ? error.response.data.message
+          : "Select payment mode in bill section.";
+        setBanner(backendMessage);
+      }
       console.error("Failed to toggle paid status:", error);
     }
   }
+
+  useEffect(() => {
+    if (!banner) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setBanner(null), 2400);
+    return () => window.clearTimeout(timeout);
+  }, [banner]);
 
   const displayOrders = useMemo(() => {
     return orders.map((order, idx) => ({
@@ -166,6 +198,12 @@ export function LiveViewPanel() {
 
   return (
     <div className="p-6 space-y-4">
+      {banner ? (
+        <div className="rounded-lg border border-amber-300 bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-100">
+          {banner}
+        </div>
+      ) : null}
+
       <Link href="/bill" className="inline-flex items-center gap-2 text-blue-600 hover:underline">
         <ArrowLeft className="w-4 h-4" />
         Back to Bill
@@ -226,6 +264,9 @@ export function LiveViewPanel() {
               <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800 rounded p-3 mb-3 border border-slate-200 dark:border-slate-600 border-l-4 border-l-slate-400 dark:border-l-slate-500">
                 <p className="text-xs text-slate-600 dark:text-slate-300 uppercase tracking-wide">Total Amount</p>
                 <p className="text-2xl font-bold text-slate-900 dark:text-white">₹{order.amount}</p>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                  Payment: {order.payment === "Split" ? `Split (Cash ₹${order.splitPayment?.cash ?? 0} + UPI ₹${order.splitPayment?.upi ?? 0})` : order.payment}
+                </p>
               </div>
 
               {/* Status Buttons */}

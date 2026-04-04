@@ -17,7 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ActiveOrdersPanel } from "@/components/bill/ActiveOrdersPanel";
 import { BillEditorPanel } from "@/components/bill/BillEditorPanel";
 import { TableManagementModal } from "@/components/bill/TableManagementModal";
-import type { BillOrder, MenuItem, OrderItem, OrderType, Palette, PaymentType, SectionType, TableNode, TableStatus } from "@/components/bill/types";
+import type { BillOrder, MenuItem, OrderItem, OrderType, Palette, PaymentType, SectionType, SplitPayment, TableNode, TableStatus } from "@/components/bill/types";
 
 type BackendMenuItem = {
   id?: string | number;
@@ -58,6 +58,10 @@ type BackendOrder = {
   } | null;
   payment?: string;
   paymentType?: string;
+  splitPayment?: {
+    cash?: number;
+    upi?: number;
+  } | null;
   paymentStatus?: string;
   preparationStatus?: string;
   unpaidAmountCleared?: boolean;
@@ -83,10 +87,23 @@ function normalizeOrderType(value: string | undefined): OrderType {
 }
 
 function normalizePayment(value: string | undefined): PaymentType {
-  if (value === "Cash" || value === "Card" || value === "UPI") {
+  if (value === "Cash" || value === "UPI" || value === "Split") {
     return value;
   }
-  return "UPI";
+  return "None";
+}
+
+function normalizeSplitPayment(value: BackendOrder["splitPayment"]): SplitPayment | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const cash = Number(value.cash ?? 0);
+  const upi = Number(value.upi ?? 0);
+  return {
+    cash: Number.isFinite(cash) && cash >= 0 ? cash : 0,
+    upi: Number.isFinite(upi) && upi >= 0 ? upi : 0,
+  };
 }
 
 function normalizeSection(value: string | undefined): SectionType {
@@ -144,6 +161,7 @@ function mapOrderFromBackend(order: BackendOrder, index: number): BillOrder {
         }
       : null,
     payment: normalizePayment(order.payment ?? order.paymentType),
+    splitPayment: normalizeSplitPayment(order.splitPayment),
     items,
     settled: Boolean(order.settled),
     paymentStatus: order.paymentStatus === "paid" ? "paid" : "pending",
@@ -352,7 +370,7 @@ export default function Home() {
     return openOrders[0] ?? null;
   }, [orders, selectedOrderId, openOrders]);
 
-  const payment = currentOrder?.payment ?? "UPI";
+  const payment = currentOrder?.payment ?? "None";
   const mobile = currentOrder?.mobile ?? "";
   const customerName = currentOrder?.customer ?? "";
   const items = useMemo(() => currentOrder?.items ?? [], [currentOrder]);
@@ -400,6 +418,16 @@ export default function Home() {
           itemCount: nextSummary.itemCount,
         };
       }),
+    );
+  }
+
+  async function persistPaymentDetails(orderId: string, nextPayment: PaymentType, nextSplitPayment: SplitPayment | null) {
+    await patchWithFallback(
+      [`/api/pos/orders/${encodeURIComponent(orderId)}`, `/api/orders/${encodeURIComponent(orderId)}`, `/orders/${encodeURIComponent(orderId)}`],
+      {
+        payment: nextPayment,
+        splitPayment: nextPayment === "Split" ? nextSplitPayment : null,
+      },
     );
   }
 
@@ -691,6 +719,7 @@ export default function Home() {
         tableId: currentOrder.tableId,
         deliveryAddress: currentOrder.deliveryAddress,
         payment: currentOrder.payment,
+        splitPayment: currentOrder.splitPayment,
         paymentStatus: currentOrder.paymentStatus,
         preparationStatus: currentOrder.preparationStatus,
         unpaidAmountCleared: currentOrder.unpaidAmountCleared,
@@ -724,11 +753,28 @@ export default function Home() {
       return;
     }
 
+    if (payment === "None") {
+      setBanner("Select payment mode in bill section.");
+      return;
+    }
+
+    if (payment === "Split") {
+      const splitCash = currentOrder.splitPayment?.cash ?? 0;
+      const splitUpi = currentOrder.splitPayment?.upi ?? 0;
+      if (splitCash <= 0 || splitUpi <= 0 || Math.abs(splitCash + splitUpi - currentOrder.amount) > 0.01) {
+        setBanner("For split payment, enter valid cash and UPI amounts equal to bill total.");
+        return;
+      }
+    }
+
     const tableId = currentOrder.tableId;
 
-    await patchWithFallback<{ payment: PaymentType }, unknown>(
+    await patchWithFallback<{ payment: PaymentType; splitPayment: SplitPayment | null }, unknown>(
       [`/api/pos/orders/${encodeURIComponent(currentOrder.id)}/settle`, `/api/orders/${encodeURIComponent(currentOrder.id)}/settle`, `/orders/${encodeURIComponent(currentOrder.id)}/settle`],
-      { payment },
+      {
+        payment,
+        splitPayment: payment === "Split" ? currentOrder.splitPayment : null,
+      },
     );
 
     setOrders((prev) =>
@@ -813,7 +859,8 @@ export default function Home() {
             autoLocation: newOrderAutoLocation.trim(),
           }
         : null,
-      payment: "UPI",
+      payment: "None",
+      splitPayment: null,
       items: [] as BackendOrderItem[],
       settled: false,
     };
@@ -865,7 +912,8 @@ export default function Home() {
               autoLocation: newOrderAutoLocation.trim(),
             }
           : null,
-        payment: "UPI",
+        payment: "None",
+        splitPayment: null,
         items: [],
         settled: false,
         paymentStatus: "pending",
@@ -997,13 +1045,37 @@ export default function Home() {
               tax={tax}
               grandTotal={grandTotal}
               payment={payment}
+              splitPayment={currentOrder?.splitPayment ?? null}
               hasCurrentOrder={Boolean(currentOrder)}
               onMobileChange={(value) => updateCurrentOrder({ mobile: value })}
               onCustomerNameChange={(value) => updateCurrentOrder({ customer: value })}
               onMenuSearchChange={setMenuSearch}
               onAddItem={addItem}
               onUpdateQty={updateQty}
-              onPaymentChange={(value) => updateCurrentOrder({ payment: value })}
+              onPaymentChange={(value) => {
+                if (!currentOrder) {
+                  return;
+                }
+
+                const nextSplit = value === "Split"
+                  ? (currentOrder.splitPayment ?? { cash: 0, upi: 0 })
+                  : null;
+
+                updateCurrentOrder({
+                  payment: value,
+                  splitPayment: nextSplit,
+                });
+
+                void persistPaymentDetails(currentOrder.id, value, nextSplit);
+              }}
+              onSplitPaymentChange={(value) => {
+                if (!currentOrder) {
+                  return;
+                }
+
+                updateCurrentOrder({ splitPayment: value });
+                void persistPaymentDetails(currentOrder.id, "Split", value);
+              }}
               onSaveAndPrint={handleSaveAndPrint}
               onSettleAndSave={handleSettleAndSave}
               money={money}

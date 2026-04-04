@@ -24,6 +24,16 @@ const deliveryAddressSchema = new mongoose.Schema(
   },
 );
 
+const splitPaymentSchema = new mongoose.Schema(
+  {
+    cash: { type: Number, min: 0, default: 0 },
+    upi: { type: Number, min: 0, default: 0 },
+  },
+  {
+    _id: false,
+  },
+);
+
 const orderSchema = new mongoose.Schema(
   {
     orderCode: { type: String, unique: true, index: true },
@@ -33,7 +43,8 @@ const orderSchema = new mongoose.Schema(
     section: { type: String, enum: ["AC", "Non-AC", "Rooftop"], default: "AC" },
     tableId: { type: String, default: null },
     deliveryAddress: { type: deliveryAddressSchema, default: null },
-    payment: { type: String, enum: ["Cash", "Card", "UPI"], default: "UPI" },
+    payment: { type: String, enum: ["Cash", "UPI", "Split"], default: undefined },
+    splitPayment: { type: splitPaymentSchema, default: null },
     paymentStatus: { type: String, enum: ["pending", "paid"], default: "pending" },
     preparationStatus: { type: String, enum: ["pending", "prepared"], default: "pending" },
     unpaidAmountCleared: { type: Boolean, default: false },
@@ -57,6 +68,11 @@ orderSchema.pre("save", function recomputeTotals(next) {
   this.subtotal = subtotal;
   this.tax = tax;
   this.amount = subtotal + tax;
+
+  if (this.payment !== "Split") {
+    this.splitPayment = null;
+  }
+
   next();
 });
 
