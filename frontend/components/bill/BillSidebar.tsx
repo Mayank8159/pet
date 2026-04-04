@@ -1,8 +1,8 @@
 "use client";
 
-import { BarChart3, ClipboardList, FileText, PieChart, Settings } from "lucide-react";
+import { BarChart3, ClipboardList, FileText, PieChart, Settings, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 type BillSidebarProps = {
   isDark: boolean;
@@ -10,6 +10,8 @@ type BillSidebarProps = {
 
 export function BillSidebar({ isDark }: BillSidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const view = searchParams.get("view");
   const normalizedPath = pathname.replace(/\/+$/, "") || "/";
 
   return (
@@ -20,16 +22,21 @@ export function BillSidebar({ isDark }: BillSidebarProps) {
 
       <nav className="space-y-2 text-xs">
         {[
+          { label: "Tables", icon: UtensilsCrossed, href: "/bill?view=tables" },
           { label: "Billing", icon: FileText, href: "/bill" },
           { label: "Operations", icon: ClipboardList, href: "/bill/operations" },
           { label: "Reports", icon: BarChart3, href: "/bill/reports" },
           { label: "Live View", icon: PieChart, href: "/bill/live-view" },
           { label: "Settings", icon: Settings, href: "/bill/settings" },
+          { label: "Menu Settings", icon: UtensilsCrossed, href: "/bill/menu-settings" },
         ].map((entry) => {
           const isBillingRoot = entry.href === "/bill";
-          const isActive = isBillingRoot
-            ? normalizedPath === "/bill"
-            : normalizedPath === entry.href || normalizedPath.startsWith(`${entry.href}/`);
+          const isTablesView = entry.href === "/bill?view=tables";
+          const isActive = isTablesView
+            ? normalizedPath === "/bill" && view === "tables"
+            : isBillingRoot
+              ? normalizedPath === "/bill" && view !== "tables"
+              : normalizedPath === entry.href || normalizedPath.startsWith(`${entry.href}/`);
 
           return (
             <Link

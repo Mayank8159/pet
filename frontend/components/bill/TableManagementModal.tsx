@@ -14,7 +14,7 @@ type TableManagementModalProps = {
   selectedTableLabel?: string;
   selectedTableId?: string | null;
   candidateTableId?: string | null;
-  tableStats: { available: number; occupied: number };
+  tableStats: { available: number; occupied: number; cleaning: number; reserved: number };
   newTableLabel: string;
   newTableStatus: TableStatus;
   onNewTableLabelChange: (value: string) => void;
@@ -71,7 +71,7 @@ export function TableManagementModal({
                     Table Management
                   </Dialog.Title>
                   <p className={`mt-1 text-sm ${palette.textMuted}`}>
-                    Add tables, toggle occupied status, and assign one to the active order.
+                    Add tables, set Available/Occupied/Cleaning/Reserved status, and assign one to the active order.
                   </p>
                 </div>
                 <button
@@ -94,6 +94,14 @@ export function TableManagementModal({
                       <p className={`text-xs uppercase tracking-[0.18em] ${isDark ? "text-rose-200/80" : "text-rose-700"}`}>Occupied</p>
                       <p className={`mt-2 text-2xl font-semibold ${palette.textStrong}`}>{tableStats.occupied}</p>
                     </div>
+                    <div className={`rounded-2xl border px-3 py-3 ${isDark ? "border-amber-300/15 bg-amber-300/10" : "border-amber-300/20 bg-amber-50"}`}>
+                      <p className={`text-xs uppercase tracking-[0.18em] ${isDark ? "text-amber-200/80" : "text-amber-700"}`}>Cleaning</p>
+                      <p className={`mt-2 text-2xl font-semibold ${palette.textStrong}`}>{tableStats.cleaning}</p>
+                    </div>
+                    <div className={`rounded-2xl border px-3 py-3 ${isDark ? "border-sky-300/15 bg-sky-300/10" : "border-sky-300/20 bg-sky-50"}`}>
+                      <p className={`text-xs uppercase tracking-[0.18em] ${isDark ? "text-sky-200/80" : "text-sky-700"}`}>Reserved</p>
+                      <p className={`mt-2 text-2xl font-semibold ${palette.textStrong}`}>{tableStats.reserved}</p>
+                    </div>
                   </div>
 
                   <div className={`mt-4 rounded-2xl border p-3 ${palette.panel}`}>
@@ -114,6 +122,8 @@ export function TableManagementModal({
                           >
                             <option value="Available">Available</option>
                             <option value="Occupied">Occupied</option>
+                            <option value="Cleaning">Cleaning</option>
+                            <option value="Reserved">Reserved</option>
                           </select>
                           <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 ${isDark ? "text-slate-300" : "text-slate-500"}`} />
                         </label>
@@ -134,6 +144,10 @@ export function TableManagementModal({
                     <span className={palette.textMuted}>Available</span>
                     <span className="ml-3 inline-block h-3 w-3 rounded-full bg-rose-400" />
                     <span className={palette.textMuted}>Occupied</span>
+                    <span className="ml-3 inline-block h-3 w-3 rounded-full bg-amber-400" />
+                    <span className={palette.textMuted}>Cleaning</span>
+                    <span className="ml-3 inline-block h-3 w-3 rounded-full bg-sky-400" />
+                    <span className={palette.textMuted}>Reserved</span>
                   </div>
 
                   <div className={`mt-4 rounded-2xl border p-3 ${palette.panel}`}>
@@ -172,7 +186,9 @@ export function TableManagementModal({
                       const isSelected = selectedTableId === table.id;
                       const isCandidate = candidateTableId === table.id;
                       const isAvailable = table.status === "Available";
-                      const canAssign = isAvailable || isSelected;
+                      const isCleaning = table.status === "Cleaning";
+                      const isReserved = table.status === "Reserved";
+                      const canAssign = (isAvailable || isCleaning) || isSelected;
 
                       return (
                         <div
@@ -182,6 +198,14 @@ export function TableManagementModal({
                               ? isDark
                                 ? "border-emerald-300/25 bg-emerald-300/10"
                                 : "border-emerald-300/30 bg-emerald-50"
+                              : isCleaning
+                                ? isDark
+                                  ? "border-amber-300/25 bg-amber-300/10"
+                                  : "border-amber-300/30 bg-amber-50"
+                              : isReserved
+                                ? isDark
+                                  ? "border-sky-300/25 bg-sky-300/10"
+                                  : "border-sky-300/30 bg-sky-50"
                               : isDark
                                 ? "border-rose-300/25 bg-rose-300/10"
                                 : "border-rose-300/30 bg-rose-50"
@@ -203,6 +227,14 @@ export function TableManagementModal({
                                   ? isDark
                                     ? "bg-emerald-300/15 text-emerald-100"
                                     : "bg-emerald-100 text-emerald-700"
+                                  : isCleaning
+                                    ? isDark
+                                      ? "bg-amber-300/15 text-amber-100"
+                                      : "bg-amber-100 text-amber-700"
+                                  : isReserved
+                                    ? isDark
+                                      ? "bg-sky-300/15 text-sky-100"
+                                      : "bg-sky-100 text-sky-700"
                                   : isDark
                                     ? "bg-rose-300/15 text-rose-100"
                                     : "bg-rose-100 text-rose-700"
@@ -217,7 +249,11 @@ export function TableManagementModal({
                                   ? "Currently assigned"
                                 : isAvailable
                                   ? "Ready for service"
-                                  : "Occupied - mark available to assign"}
+                                  : isCleaning
+                                    ? "Cleaning in progress - can still assign"
+                                  : isReserved
+                                    ? "Reserved - switch to available/cleaning to assign"
+                                    : "Occupied - mark available/cleaning to assign"}
                             </div>
                           </button>
 
@@ -229,12 +265,20 @@ export function TableManagementModal({
                                 ? isDark
                                   ? "border-[#f06a5a]/30 bg-[#f06a5a]/15 text-[#ffd8d3]"
                                   : "border-[#cc4b3e]/20 bg-[#cc4b3e]/12 text-[#7f1d16]"
+                                : isCleaning
+                                  ? isDark
+                                    ? "border-amber-300/25 bg-amber-300/15 text-amber-100"
+                                    : "border-amber-300/30 bg-amber-100 text-amber-800"
+                                : isReserved
+                                  ? isDark
+                                    ? "border-sky-300/25 bg-sky-300/15 text-sky-100"
+                                    : "border-sky-300/30 bg-sky-100 text-sky-800"
                                 : isDark
                                   ? "border-[#6be7cf]/25 bg-[#6be7cf]/12 text-[#d8fff7]"
                                   : "border-[#2f9e88]/20 bg-[#2f9e88]/10 text-[#14564a]"
                             }`}
                           >
-                            {isAvailable ? "Mark Occupied" : "Mark Available"}
+                            {isAvailable ? "Mark Occupied" : isCleaning ? "Mark Reserved" : isReserved ? "Mark Available" : "Mark Cleaning"}
                           </button>
 
                           <button
@@ -258,7 +302,7 @@ export function TableManagementModal({
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                 <p className={`text-sm ${palette.textMuted}`}>
-                  Use the grid to keep table status accurate. Green means ready, red means occupied.
+                  Use the grid to keep table status accurate. Green means ready, amber means cleaning, red means occupied.
                 </p>
                 <button
                   type="button"

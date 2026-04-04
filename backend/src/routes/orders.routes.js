@@ -4,7 +4,7 @@ const Order = require("../models/Order");
 const { humanElapsed } = require("../utils/time");
 
 const router = express.Router();
-const VALID_PAYMENTS = new Set(["Cash", "UPI", "Split"]);
+const VALID_PAYMENTS = new Set(["Cash", "UPI", "Split", "Card", "Due", "Other"]);
 
 function normalizePayment(value) {
   const normalized = typeof value === "string" ? value.trim() : "";
@@ -86,6 +86,7 @@ function normalizeOrderPayload(payload) {
     mobile: String(payload.mobile || payload.phone || "").trim(),
     type,
     section: payload.section || "AC",
+    persons: Math.max(1, Number(payload.persons ?? 1) || 1),
     tableId: payload.tableId || null,
     deliveryAddress,
     payment,
@@ -108,6 +109,7 @@ function toResponse(order) {
     elapsed: humanElapsed(order.createdAt, order.settled),
     mobile: order.mobile,
     section: order.section,
+    persons: Math.max(1, Number(order.persons ?? 1) || 1),
     tableId: order.tableId,
     deliveryAddress: order.deliveryAddress || null,
     payment: order.payment || null,
@@ -195,6 +197,7 @@ router.patch("/:id", async (req, res, next) => {
     existing.mobile = payload.mobile;
     existing.type = payload.type;
     existing.section = payload.section;
+    existing.persons = payload.persons;
     existing.tableId = payload.tableId;
     existing.deliveryAddress = payload.deliveryAddress;
     existing.payment = payload.payment;
@@ -232,6 +235,7 @@ router.patch("/:id/settle", async (req, res, next) => {
     }
 
     existing.settled = true;
+    existing.paymentStatus = "paid";
     await existing.save();
 
     res.json(toResponse(existing.toObject()));

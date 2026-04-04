@@ -3,6 +3,7 @@ const Order = require("../models/Order");
 const Table = require("../models/Table");
 
 const router = express.Router();
+const VALID_TABLE_STATUSES = new Set(["Available", "Occupied", "Cleaning", "Reserved"]);
 
 function normalizeTableLabel(rawValue) {
   const value = String(rawValue || "").trim().toUpperCase();
@@ -43,7 +44,8 @@ router.post("/", async (req, res, next) => {
       return res.status(409).json({ message: `${normalizedLabel} already exists` });
     }
 
-    const status = req.body?.status === "Occupied" ? "Occupied" : "Available";
+    const requestedStatus = String(req.body?.status || "").trim();
+    const status = VALID_TABLE_STATUSES.has(requestedStatus) ? requestedStatus : "Available";
     const created = await Table.create({
       tableId: normalizedLabel,
       label: normalizedLabel,
@@ -65,15 +67,19 @@ router.patch("/:id/status", async (req, res, next) => {
       return res.status(404).json({ message: "Table not found" });
     }
 
-    const requestedStatus = req.body?.status;
-    const nextStatus = requestedStatus === "Available" || requestedStatus === "Occupied"
+    const requestedStatus = String(req.body?.status || "").trim();
+    const nextStatus = VALID_TABLE_STATUSES.has(requestedStatus)
       ? requestedStatus
-      : table.status === "Occupied"
-        ? "Available"
-        : "Occupied";
+      : table.status === "Available"
+        ? "Occupied"
+        : table.status === "Occupied"
+          ? "Cleaning"
+          : table.status === "Cleaning"
+            ? "Reserved"
+            : "Available";
 
     table.status = nextStatus;
-    if (nextStatus === "Available") {
+    if (nextStatus !== "Occupied") {
       if (table.assignedOrderCode) {
         await Order.updateMany(
           { orderCode: table.assignedOrderCode, settled: false },

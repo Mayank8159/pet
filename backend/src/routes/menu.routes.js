@@ -95,6 +95,25 @@ router.get("/", async (_req, res, next) => {
       price: item.price,
       tag: item.tag,
       category: item.category,
+      isActive: item.isActive !== false,
+    }));
+
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/all", async (_req, res, next) => {
+  try {
+    const rows = await MenuItem.find().sort({ name: 1 }).lean();
+    const data = rows.map((item) => ({
+      id: String(item._id),
+      name: item.name,
+      price: item.price,
+      tag: item.tag,
+      category: item.category,
+      isActive: item.isActive !== false,
     }));
 
     res.json(data);
@@ -119,6 +138,35 @@ router.post("/", async (req, res, next) => {
       price: created.price,
       tag: created.tag,
       category: created.category,
+      isActive: created.isActive !== false,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/:id/availability", async (req, res, next) => {
+  try {
+    const menuId = String(req.params.id || "").trim();
+    const isActive = Boolean(req.body?.isActive);
+
+    const updated = await MenuItem.findByIdAndUpdate(
+      menuId,
+      { $set: { isActive } },
+      { new: true },
+    ).lean();
+
+    if (!updated) {
+      return res.status(404).json({ message: "Menu item not found" });
+    }
+
+    res.json({
+      id: String(updated._id),
+      name: updated.name,
+      price: updated.price,
+      tag: updated.tag,
+      category: updated.category,
+      isActive: updated.isActive !== false,
     });
   } catch (error) {
     next(error);

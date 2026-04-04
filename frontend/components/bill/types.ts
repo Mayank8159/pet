@@ -1,7 +1,7 @@
 export type OrderType = "Delivery" | "Takeaway" | "Dine-In";
 export type SectionType = "AC" | "Non-AC" | "Rooftop";
-export type PaymentType = "None" | "Cash" | "UPI" | "Split";
-export type TableStatus = "Available" | "Occupied";
+export type PaymentType = "None" | "Cash" | "UPI" | "Split" | "Card" | "Due" | "Other";
+export type TableStatus = "Available" | "Occupied" | "Cleaning" | "Reserved";
 
 export type SplitPayment = {
   cash: number;
@@ -40,6 +40,7 @@ export type ActiveOrder = {
 export type BillOrder = ActiveOrder & {
   mobile: string;
   section: SectionType;
+  persons: number;
   tableId: string | null;
   deliveryAddress: DeliveryAddress | null;
   payment: PaymentType;
@@ -53,9 +54,11 @@ export type BillOrder = ActiveOrder & {
 
 export type MenuItem = {
   id: string;
+  token: string;
   name: string;
   price: number;
   tag: string;
+  isActive?: boolean;
 };
 
 export type Palette = Record<string, string>;

@@ -77,13 +77,13 @@ export function ActiveOrdersPanel({
             value={newOrderCustomer}
             onChange={(event) => onCustomerChange(event.target.value)}
             placeholder="Customer name"
-            className={`rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
+            className={`rounded-xl border px-3 py-2 text-sm outline-none text-red-500 placeholder:text-red-300 ${palette.headerPill}`}
           />
           <input
             value={newOrderMobile}
             onChange={(event) => onMobileChange(event.target.value)}
             placeholder="Mobile number"
-            className={`rounded-xl border px-3 py-2 text-sm outline-none ${palette.headerPill}`}
+            className={`rounded-xl border px-3 py-2 text-sm outline-none text-red-500 placeholder:text-red-300 ${palette.headerPill}`}
           />
           <Listbox value={newOrderType} onChange={onTypeChange}>
             <div className="relative z-[130]">
@@ -165,7 +165,7 @@ export function ActiveOrdersPanel({
                       Select table
                     </Listbox.Option>
                     {tables
-                      .filter((table) => table.status === "Available" || table.id === newOrderTableId)
+                      .filter((table) => table.status !== "Occupied" || table.id === newOrderTableId)
                       .map((table) => (
                         <Listbox.Option
                           key={table.id}

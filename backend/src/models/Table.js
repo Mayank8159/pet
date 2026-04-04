@@ -4,7 +4,7 @@ const tableSchema = new mongoose.Schema(
   {
     tableId: { type: String, required: true, unique: true, index: true },
     label: { type: String, required: true, trim: true },
-    status: { type: String, enum: ["Available", "Occupied"], default: "Available" },
+    status: { type: String, enum: ["Available", "Occupied", "Cleaning", "Reserved"], default: "Available" },
     assignedOrderCode: { type: String, default: null },
   },
   {
