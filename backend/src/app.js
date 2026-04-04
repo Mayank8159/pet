@@ -11,10 +11,38 @@ const authRoutes = require("./routes/auth.routes");
 const app = express();
 
 const corsOrigins = process.env.CLIENT_ORIGIN
-  ? process.env.CLIENT_ORIGIN.split(",").map((origin) => origin.trim())
+  ? process.env.CLIENT_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean)
   : ["http://localhost:3000", "http://localhost:3001", "https://pet-mu-eight.vercel.app"];
 
-app.use(cors({ origin: corsOrigins }));
+function isLocalDevOrigin(origin) {
+  if (!origin) {
+    return false;
+  }
+
+  try {
+    const { hostname, protocol } = new URL(origin);
+    const isHttp = protocol === "http:" || protocol === "https:";
+    const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1";
+    return isHttp && isLocalHost;
+  } catch {
+    return false;
+  }
+}
+
+app.use(cors({
+  origin(origin, callback) {
+    // Requests from non-browser clients may have no Origin header.
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (corsOrigins.includes(origin) || isLocalDevOrigin(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+}));
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan("dev"));
 

@@ -24,6 +24,7 @@ type BillEditorPanelProps = {
   payment: PaymentType;
   splitPayment: SplitPayment | null;
   hasCurrentOrder: boolean;
+  isKOTOrder: boolean;
   onMobileChange: (value: string) => void;
   onCustomerNameChange: (value: string) => void;
   onOrderTypeChange: (value: OrderType) => void;
@@ -69,6 +70,7 @@ export function BillEditorPanel({
   payment,
   splitPayment,
   hasCurrentOrder,
+  isKOTOrder,
   onMobileChange,
   onCustomerNameChange,
   onOrderTypeChange,
@@ -394,7 +396,7 @@ export function BillEditorPanel({
             className={`inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold ${isDark ? "border-[#f06a5a]/35 bg-[#f06a5a]/18 text-[#ffd8d3]" : "border-[#cc4b3e]/20 bg-[#cc4b3e]/12 text-[#7f1d16]"}`}
           >
             <Printer className="h-4 w-4" />
-            {isSavingAndPrinting ? "Saving..." : "Save & Print"}
+            {isSavingAndPrinting ? "Saving..." : isKOTOrder ? "Save & Print (Move to Dine-In)" : "Save & Print"}
           </button>
           <button
             type="button"

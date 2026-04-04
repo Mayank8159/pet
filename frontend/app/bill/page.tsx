@@ -39,16 +39,10 @@ type BackendOrderItem = {
   id?: string | number;
   name?: string;
   qty?: number;
-  category?: string;
-  isActive?: boolean;
-};
-
-type BackendOrderItem = {
-  id?: string | number;
-  name?: string;
-  qty?: number;
   quantity?: number;
   price?: number;
+  category?: string;
+  isActive?: boolean;
 };
 
 type BackendOrder = {
@@ -537,6 +531,12 @@ export default function Home() {
   }, [orders, selectedOrderId, openOrders]);
 
   const payment = currentOrder?.payment ?? "None";
+  const isCurrentOrderKOT = Boolean(
+    currentOrder &&
+    !currentOrder.settled &&
+    currentOrder.preparationStatus === "prepared" &&
+    currentOrder.paymentStatus === "pending",
+  );
   const mobile = currentOrder?.mobile ?? "";
   const customerName = currentOrder?.customer ?? "";
   const currentOrderType = currentOrder?.type ?? "Dine-In";
@@ -1111,6 +1111,77 @@ export default function Home() {
     setActiveBillAction("savePrint");
 
     try {
+      if (isCurrentOrderKOT) {
+        const restoredOrder: BillOrder = {
+          ...currentOrder,
+          type: "Dine-In",
+          settled: false,
+          preparationStatus: "pending",
+          paymentStatus: "pending",
+          elapsed: "Now",
+        };
+
+        setOrders((prev) => prev.map((order) => (order.id === currentOrder.id ? restoredOrder : order)));
+        setSelectedOrderId(restoredOrder.id);
+
+        const printWindow = typeof window !== "undefined"
+          ? window.open("", "_blank", "width=840,height=700")
+          : null;
+
+        const persisted = await persistOrderToBackend(restoredOrder);
+        if (!persisted) {
+          if (printWindow) {
+            printWindow.close();
+          }
+          setBanner(`${currentOrder.id} moved to Dine-In locally. Backend sync pending.`);
+          return;
+        }
+
+        setBanner(`${currentOrder.id} moved from KOT to Dine-In and print started.`);
+        if (printWindow) {
+          const now = new Date();
+          const rowsHtml = restoredOrder.items
+            .map((item, index) => {
+              const lineTotal = item.qty * item.price;
+              return `<tr><td>${index + 1}</td><td>${item.name}</td><td>${item.qty}</td><td>${item.price}</td><td>${lineTotal}</td></tr>`;
+            })
+            .join("");
+
+          printWindow.document.write(`<!doctype html><html><head><title>Bill ${restoredOrder.id}</title><style>
+          body{font-family:Arial,sans-serif;padding:20px;color:#111}
+          h1{margin:0 0 6px 0;font-size:22px}
+          .meta{margin-bottom:12px;font-size:13px}
+          table{width:100%;border-collapse:collapse;margin-top:12px}
+          th,td{border:1px solid #ddd;padding:8px;font-size:13px;text-align:left}
+          th{background:#f4f4f4}
+          .totals{margin-top:14px;display:flex;justify-content:flex-end}
+          .totals div{width:260px}
+          .totals p{display:flex;justify-content:space-between;margin:6px 0}
+          .strong{font-weight:bold;font-size:15px}
+        </style></head><body>
+          <h1>Restaurant POS Bill</h1>
+          <div class="meta">
+            <div>Bill No: ${restoredOrder.id}</div>
+            <div>Date: ${now.toLocaleString()}</div>
+            <div>Customer: ${restoredOrder.customer || "Guest"}</div>
+            <div>Mobile: ${restoredOrder.mobile || "-"}</div>
+            <div>Type: ${restoredOrder.type} | Section: ${restoredOrder.section} | Table: ${restoredOrder.tableId || "-"} | Persons: ${restoredOrder.persons ?? 1}</div>
+          </div>
+          <table><thead><tr><th>#</th><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${rowsHtml || "<tr><td colspan='5'>No items</td></tr>"}</tbody></table>
+          <div class="totals"><div>
+            <p><span>Subtotal</span><span>${subtotal}</span></p>
+            <p><span>Tax</span><span>${tax}</span></p>
+            <p class="strong"><span>Grand Total</span><span>${grandTotal}</span></p>
+          </div></div>
+        </body></html>`);
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+        }
+
+        return;
+      }
+
       const savedOrder: BillOrder = {
         ...currentOrder,
         settled: true,
@@ -2022,6 +2093,10 @@ export default function Home() {
                 isDark={isDark}
                 embedded
                 orders={orders.filter((order) => order.settled || order.preparationStatus === "prepared")}
+                onSelectOrderForBilling={(orderId) => {
+                  setSelectedOrderId(orderId);
+                  setBanner(`Opened ${orderId} in billing panel.`);
+                }}
               />
             </section>
 
@@ -2080,6 +2155,7 @@ export default function Home() {
               payment={payment}
               splitPayment={currentOrder?.splitPayment ?? null}
               hasCurrentOrder={Boolean(currentOrder)}
+              isKOTOrder={isCurrentOrderKOT}
               onMobileChange={(value) => updateCurrentOrder({ mobile: value })}
               onCustomerNameChange={(value) => updateCurrentOrder({ customer: value })}
               onOrderTypeChange={handleCurrentOrderTypeChange}

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
@@ -88,11 +88,17 @@ type OrderHistoryPanelProps = {
   isDark?: boolean;
   embedded?: boolean;
   orders?: BillOrder[];
+  onSelectOrderForBilling?: (orderId: string) => void;
 };
 
 type SavedSection = "Dine-In" | "KOT" | "Takeaway";
 
-export function OrderHistoryPanel({ isDark = false, embedded = false, orders: providedOrders }: OrderHistoryPanelProps) {
+export function OrderHistoryPanel({
+  isDark = false,
+  embedded = false,
+  orders: providedOrders,
+  onSelectOrderForBilling,
+}: OrderHistoryPanelProps) {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
@@ -216,6 +222,7 @@ export function OrderHistoryPanel({ isDark = false, embedded = false, orders: pr
             const colorStatus = getOrderColorStatus(order);
             const isExpanded = expandedOrderId === order.id;
             const showUnpaidCheckbox = shouldShowUnpaidCheckbox(order);
+            const canOpenInBilling = Boolean(onSelectOrderForBilling) && colorStatus === "unpaid-history";
             const lightCardTone =
               colorStatus === "green"
                 ? "bg-white border-green-500 shadow-[0_8px_24px_rgba(22,163,74,0.12)]"
@@ -240,8 +247,27 @@ export function OrderHistoryPanel({ isDark = false, embedded = false, orders: pr
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
-                className={`${compact ? "p-2" : "p-4"} cursor-pointer ${cardTone}`}
+                className={`${compact ? "p-2" : "p-4"} ${canOpenInBilling ? (compact ? "pr-10" : "pr-12") : ""} relative overflow-visible cursor-pointer ${cardTone}`}
               >
+                {canOpenInBilling ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onSelectOrderForBilling?.(order.id);
+                    }}
+                    className={`absolute right-2 top-1/2 z-10 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border shadow-sm ${
+                      isDark
+                        ? "border-rose-300/35 bg-rose-300/10 text-rose-100"
+                        : "border-rose-600/30 bg-rose-100 text-rose-800"
+                    }`}
+                    title="Open in billing panel"
+                    aria-label={`Open ${order.id} in billing panel`}
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+
                 <div className={`flex items-start justify-between ${compact ? "gap-2" : "gap-3"}`}>
                   <div className="flex-1">
                     <h3 className={`font-bold ${compact ? "text-xs" : "text-xl"} ${titleText}`}>{order.id}</h3>
